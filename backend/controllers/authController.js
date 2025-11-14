@@ -197,10 +197,53 @@ const checkAuthMethod = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Create a new user
+// @route   POST /api/auth/create-user
+// @access  Public
+const createUser = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { name, mobile, password } = req.body;
+
+  const userExists = await User.findOne({ mobile });
+  if (userExists) {
+    res.status(400);
+    throw new Error('User already exists');
+  }
+
+  const userData = {
+    name,
+    mobile,
+  };
+
+  if (password) {
+    userData.password = password;
+  }
+
+  const user = await User.create(userData);
+
+  if (user) {
+    res.status(201).json({
+      _id: user.id,
+      name: user.name,
+      mobile: user.mobile,
+      role: user.role,
+      token: generateToken(user._id),
+    });
+  } else {
+    res.status(400);
+    throw new Error('Invalid user data');
+  }
+});
+
 module.exports = {
   registerUser,
   loginWithOTP,
   loginWithPassword,
   verifyOTP,
   checkAuthMethod,
+  createUser,
 };

@@ -195,10 +195,8 @@ export default {
           userData.aadhaar = this.formData.aadhaar.trim();
         }
 
-        const response = await authService.register(userData);
-        this.userId = response.userId;
-        this.showOTP = true;
-        this.error = '';
+        await authService.register(userData);
+        this.router.push('/');
       } catch (err) {
         console.error('Registration error:', err);
         this.error = err.message || 'Failed to register. Please try again.';

@@ -5,7 +5,8 @@ const {
   loginWithOTP, 
   loginWithPassword, 
   verifyOTP,
-  checkAuthMethod 
+  checkAuthMethod,
+  createUser
 } = require('../controllers/authController');
 const { registerValidationRules, loginValidationRules } = require('../middleware/validators/authValidator');
 
@@ -23,5 +24,8 @@ router.post('/verify-otp', verifyOTP);
 
 // Check available authentication methods for a user
 router.post('/check-auth-method', checkAuthMethod);
+
+// Create a new user
+router.post('/create-user', registerValidationRules(), createUser);
 
 module.exports = router;

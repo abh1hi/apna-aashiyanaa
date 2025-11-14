@@ -2,23 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { authGuard } from '../utils/authGuard';
 
 const routes = [
-  {
-    path: '/auth',
-    name: 'PhoneAuth',
-    component: () => import('../pages/PhoneAuth.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'Login / Sign Up'
-    }
-  },
-  {
-    path: '/login',
-    redirect: '/auth'
-  },
-  {
-    path: '/signup',
-    redirect: '/auth'
-  },
     // Public Routes
     {
       path: '/',
@@ -27,30 +10,16 @@ const routes = [
     },
     // Authentication Routes
     {
-      path: '/auth',
-      children: [
-        {
-          path: 'login',
-          name: 'Login',
-          component: () => import('../pages/auth/Login.vue'),
-          meta: { requiresGuest: true }
-        },
-        {
-          path: 'register',
-          name: 'Register',
-          component: () => import('../pages/auth/Register.vue'),
-          meta: { requiresGuest: true }
-        }
-      ]
-    },
-    // Backward compatibility - keep old auth routes
-    {
       path: '/login',
-      redirect: '/auth/login'
+      name: 'Login',
+      component: () => import('../pages/Login.vue'),
+      meta: { requiresGuest: true }
     },
     {
       path: '/register',
-      redirect: '/auth/register'
+      name: 'Register',
+      component: () => import('../pages/Register.vue'),
+      meta: { requiresGuest: true }
     },
     // Property Routes
     {

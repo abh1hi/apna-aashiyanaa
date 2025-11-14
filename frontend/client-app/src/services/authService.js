@@ -1,7 +1,7 @@
-import { 
-  auth 
-} from '../firebaseConfig';
-import { 
+import {
+  auth
+} from '../firebaseConfig.js';
+import {
   signInWithPhoneNumber,
   RecaptchaVerifier,
   signOut as firebaseSignOut,
@@ -14,14 +14,13 @@ class AuthService {
     this.recaptchaVerifier = null;
     this.confirmationResult = null;
   }
-  
+
   /**
    * Initialize reCAPTCHA
    */
   initRecaptcha(containerId = 'recaptcha-container') {
     if (!this.recaptchaVerifier) {
       // Corrected argument order: containerId, parameters, auth
-      }
 
       this.recaptchaVerifier = new RecaptchaVerifier(containerId, {
         size: 'invisible',
@@ -37,14 +36,32 @@ class AuthService {
     return this.recaptchaVerifier;
   }
 
+  async checkAuthMethod(mobile) {
+    try {
+      const response = await api.post('/auth/check-method', { mobile });
+      return response.data;
+    } catch (error) {
+      console.error('Error checking auth method:', error);
+      throw error;
+    }
+  }
+
+  async loginWithPassword(mobile, password) {
+    try {
+      const response = await api.post('/auth/login', { mobile, password });
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      return response.data;
+    } catch (error) {
+      console.error('Error logging in with password:', error);
+      throw error;
+    }
+  }
+
   async register(userData) {
     try {
       // Make API call to backend to register user
       const response = await api.post('/auth/register', userData);
-      
-      // If registration is successful, send OTP
-      await this.sendOTP(userData.mobile);
-
       return { success: true, userId: response.data.userId };
     } catch (error) {
       console.error('Error during registration:', error);
@@ -55,21 +72,21 @@ class AuthService {
   /**
    * Send OTP to phone number
    */
-  async sendOTP(phoneNumber) {
+  async loginWithOTP(phoneNumber) {
     try {
       // Ensure phone number has country code
       const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
-      
+
       // Initialize reCAPTCHA if not already done
       const appVerifier = this.initRecaptcha();
-      
+
       // Send OTP
       this.confirmationResult = await signInWithPhoneNumber(
         auth,
         formattedPhone,
         appVerifier
       );
-      
+
       return {
         success: true,
         message: 'OTP sent successfully'
@@ -88,7 +105,7 @@ class AuthService {
   /**
    * Verify OTP and log in or register the user
    */
-  async verifyOTP(otp) {
+  async verifyOTP(userId, otp) {
     try {
       if (!this.confirmationResult) {
         throw new Error('No OTP request found. Please request OTP first.');
@@ -97,7 +114,7 @@ class AuthService {
       // Verify OTP with Firebase
       const result = await this.confirmationResult.confirm(otp);
       const user = result.user;
-      
+
       // Get Firebase ID token
       const idToken = await user.getIdToken();
 
