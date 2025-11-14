@@ -1,23 +1,12 @@
 {
-  "functions": [
-    {
-      "codebase": "default",
-      "source": "functions",
-      "runtime": "nodejs22"
-    },
-    {
-      "source": "function",
-      "codebase": "backend",
-      "disallowLegacyRuntimeConfig": true,
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local"
-      ]
-    }
-  ],
+  "functions": {
+    "source": "functions",
+    "codebase": "default",
+    "runtime": "nodejs18",
+    "predeploy": [
+      "npm --prefix \"$RESOURCE_DIR\" run lint"
+    ]
+  },
   "firestore": {
     "database": "(default)",
     "location": "asia-south1",
@@ -37,7 +26,9 @@
     "rewrites": [
       {
         "source": "/api/**",
-        "function": "api"
+        "function": {
+          "functionId": "api"
+        }
       },
       {
         "source": "**",

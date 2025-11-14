@@ -1,18 +1,23 @@
 /**
  * Firebase Cloud Functions Main Entry Point
- * Updated to include Phone Authentication endpoints
+ * Apna Aashiyanaa Property Management App
  */
 
-const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
 // Initialize Firebase Admin
-admin.initializeApp();
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
 // Import auth functions
 const authFunctions = require('./auth');
 
-// Export all auth-related Cloud Functions
+// Import API function
+const { api } = require('./api');
+
+// Export Cloud Functions
+// Auth Functions
 exports.getUserProfile = authFunctions.getUserProfile;
 exports.updateUserProfile = authFunctions.updateUserProfile;
 exports.getUserByPhone = authFunctions.getUserByPhone;
@@ -21,8 +26,5 @@ exports.deleteUserAccount = authFunctions.deleteUserAccount;
 exports.onUserCreate = authFunctions.onUserCreate;
 exports.onUserDelete = authFunctions.onUserDelete;
 
-// Add your other existing Cloud Functions below
-// Example:
-// const propertyFunctions = require('./property');
-// exports.getProperties = propertyFunctions.getProperties;
-
+// API Function (Express app)
+exports.api = api;

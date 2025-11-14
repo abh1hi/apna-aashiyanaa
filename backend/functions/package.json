@@ -1,6 +1,6 @@
 {
   "name": "functions",
-  "description": "Cloud Functions for Firebase",
+  "description": "Cloud Functions for Apna Aashiyanaa",
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -8,6 +8,8 @@
     "shell": "firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
+    "deploy:hosting": "firebase deploy --only hosting",
+    "deploy:all": "firebase deploy",
     "logs": "firebase functions:log",
     "test": "jest"
   },
