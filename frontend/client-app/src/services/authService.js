@@ -1,6 +1,6 @@
 import { 
   auth 
-} from '../config/firebase';
+} from ''../firebaseConfig'';
 import { 
   signInWithPhoneNumber,
   RecaptchaVerifier,
@@ -21,11 +21,6 @@ class AuthService {
   initRecaptcha(containerId = 'recaptcha-container') {
     if (!this.recaptchaVerifier) {
       // Corrected argument order: containerId, parameters, auth
-      // Ensure auth.appVerificationDisabledForTesting exists for emulator
-      if (auth.emulatorConfig && auth.emulatorConfig.host) { // Check if emulator is in use
-        if (auth.appVerificationDisabledForTesting === undefined) {
-          auth.appVerificationDisabledForTesting = true; // Set to true for testing with emulator
-        }
       }
 
       this.recaptchaVerifier = new RecaptchaVerifier(containerId, {
