@@ -1,4 +1,4 @@
-const { db, docWithId, docsWithIds } = require('../config/firestore');
+const {db, docWithId, docsWithIds} = require('../config/firestore');
 
 class Favorite {
   /**
@@ -25,9 +25,9 @@ class Favorite {
   static async findByUserId(userId) {
     try {
       const snapshot = await this.collection
-        .where('userId', '==', userId)
-        .orderBy('createdAt', 'desc')
-        .get();
+          .where('userId', '==', userId)
+          .orderBy('createdAt', 'desc')
+          .get();
       return docsWithIds(snapshot);
     } catch (error) {
       console.error('Error finding user favorites:', error);
@@ -41,10 +41,10 @@ class Favorite {
   static async findByUserIdAndPropertyId(userId, propertyId) {
     try {
       const snapshot = await this.collection
-        .where('userId', '==', userId)
-        .where('propertyId', '==', propertyId)
-        .limit(1)
-        .get();
+          .where('userId', '==', userId)
+          .where('propertyId', '==', propertyId)
+          .limit(1)
+          .get();
       if (snapshot.empty) return null;
       return docWithId(snapshot.docs[0]);
     } catch (error) {

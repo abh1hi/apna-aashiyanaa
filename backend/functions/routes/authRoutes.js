@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { 
+const {
   registerOrLoginWithPhone,
-  loginWithPassword, 
-  checkAuthMethod 
+  loginWithPassword,
+  checkAuthMethod,
 } = require('../controllers/authController');
 
 // Define the routes for user authentication

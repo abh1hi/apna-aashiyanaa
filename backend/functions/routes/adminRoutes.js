@@ -6,7 +6,7 @@ const {
   approveProperty,
   rejectProperty,
 } = require('../controllers/adminController');
-const { protect, admin } = require('../middleware/authMiddleware');
+const {protect, admin} = require('../middleware/authMiddleware');
 
 // All routes in this file are protected by admin middleware
 router.use(protect, admin);

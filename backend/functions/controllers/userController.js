@@ -32,7 +32,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
   if (user) {
     user.name = req.body.name || user.name;
     user.mobile = req.body.mobile || user.mobile;
-    
+
     // Only update aadhaar if provided
     if (req.body.aadhaar !== undefined) {
       user.aadhaar = req.body.aadhaar;

@@ -1,4 +1,4 @@
-const { validationResult } = require('express-validator');
+const {validationResult} = require('express-validator');
 const User = require('../models/User');
 const admin = require('firebase-admin');
 const jwt = require('jsonwebtoken');
@@ -7,7 +7,7 @@ const functions = require('firebase-functions');
 
 // Generates a JWT token for a given user ID.
 const generateToken = (id) => {
-  return jwt.sign({ id }, functions.config().jwt.secret, {
+  return jwt.sign({id}, functions.config().jwt.secret, {
     expiresIn: '30d',
   });
 };
@@ -16,7 +16,7 @@ const generateToken = (id) => {
 // @route   POST /api/auth/phone
 // @access  Public
 const registerOrLoginWithPhone = asyncHandler(async (req, res) => {
-  const { idToken } = req.body;
+  const {idToken} = req.body;
 
   if (!idToken) {
     res.status(400);
@@ -25,9 +25,9 @@ const registerOrLoginWithPhone = asyncHandler(async (req, res) => {
 
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const { phone_number: phoneNumber, uid: firebaseUid } = decodedToken;
+    const {phone_number: phoneNumber, uid: firebaseUid} = decodedToken;
 
-    let user = await User.findByFirebaseUid(firebaseUid);
+    const user = await User.findByFirebaseUid(firebaseUid);
 
     if (user) {
       // User exists, log them in
@@ -40,14 +40,14 @@ const registerOrLoginWithPhone = asyncHandler(async (req, res) => {
       });
     } else {
       // User does not exist, create a new user
-      const { name } = req.body; // Or get name from other sources
+      const {name} = req.body; // Or get name from other sources
       const newUser = {
         firebaseUid,
         mobile: phoneNumber,
         name,
         role: 'user',
       };
-      
+
       const createdUser = await User.create(newUser);
 
       res.status(201).json({
@@ -68,7 +68,7 @@ const registerOrLoginWithPhone = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/login/password
 // @access  Public
 const loginWithPassword = asyncHandler(async (req, res) => {
-  const { mobile, password } = req.body;
+  const {mobile, password} = req.body;
 
   if (!mobile || !password) {
     res.status(400);
@@ -111,7 +111,7 @@ const loginWithPassword = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/check-auth-method
 // @access  Public
 const checkAuthMethod = asyncHandler(async (req, res) => {
-  const { mobile } = req.body;
+  const {mobile} = req.body;
 
   if (!mobile) {
     res.status(400);

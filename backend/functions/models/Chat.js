@@ -1,4 +1,4 @@
-const { db, docWithId, docsWithIds } = require('../config/firestore');
+const {db, docWithId, docsWithIds} = require('../config/firestore');
 
 class Chat {
   /**
@@ -24,10 +24,10 @@ class Chat {
   static async findMessagesBetweenUsers(user1Id, user2Id) {
     try {
       const snapshot = await this.collection
-        .where('senderId', 'in', [user1Id, user2Id])
-        .where('receiverId', 'in', [user1Id, user2Id])
-        .orderBy('createdAt', 'asc')
-        .get();
+          .where('senderId', 'in', [user1Id, user2Id])
+          .where('receiverId', 'in', [user1Id, user2Id])
+          .orderBy('createdAt', 'asc')
+          .get();
       return docsWithIds(snapshot);
     } catch (error) {
       console.error('Error finding chat messages:', error);

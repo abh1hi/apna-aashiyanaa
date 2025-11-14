@@ -1,4 +1,4 @@
-const { db, docWithId, docsWithIds } = require('../config/firestore');
+const {db, docWithId, docsWithIds} = require('../config/firestore');
 const bcrypt = require('bcrypt');
 
 class User {
@@ -18,7 +18,7 @@ class User {
         createdAt: new Date(),
         updatedAt: new Date(),
         isActive: true,
-        role: userData.role || 'user'
+        role: userData.role || 'user',
       });
 
       const doc = await docRef.get();
@@ -35,9 +35,9 @@ class User {
   static async findByPhone(phone) {
     try {
       const snapshot = await this.collection
-        .where('phone', '==', phone)
-        .limit(1)
-        .get();
+          .where('phone', '==', phone)
+          .limit(1)
+          .get();
 
       if (snapshot.empty) return null;
       return docWithId(snapshot.docs[0]);
@@ -53,9 +53,9 @@ class User {
   static async findByEmail(email) {
     try {
       const snapshot = await this.collection
-        .where('email', '==', email)
-        .limit(1)
-        .get();
+          .where('email', '==', email)
+          .limit(1)
+          .get();
 
       if (snapshot.empty) return null;
       return docWithId(snapshot.docs[0]);
@@ -84,9 +84,9 @@ class User {
   static async findByFirebaseUid(firebaseUid) {
     try {
       const snapshot = await this.collection
-        .where('firebaseUid', '==', firebaseUid)
-        .limit(1)
-        .get();
+          .where('firebaseUid', '==', firebaseUid)
+          .limit(1)
+          .get();
 
       if (snapshot.empty) return null;
       return docWithId(snapshot.docs[0]);
@@ -103,10 +103,10 @@ class User {
     try {
       // Remove password from updateData if present (use separate method)
       delete updateData.password;
-      
+
       await this.collection.doc(userId).update({
         ...updateData,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       return await this.findById(userId);
@@ -126,7 +126,7 @@ class User {
 
       await this.collection.doc(userId).update({
         password: hashedPassword,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       return true;
@@ -155,7 +155,7 @@ class User {
     try {
       await this.collection.doc(userId).update({
         isActive: false,
-        deletedAt: new Date()
+        deletedAt: new Date(),
       });
       return true;
     } catch (error) {
@@ -182,11 +182,11 @@ class User {
    */
   static async findAll(options = {}) {
     try {
-      const { limit = 50, startAfter = null, role = null } = options;
-      
+      const {limit = 50, startAfter = null, role = null} = options;
+
       let query = this.collection
-        .where('isActive', '==', true)
-        .orderBy('createdAt', 'desc');
+          .where('isActive', '==', true)
+          .orderBy('createdAt', 'desc');
 
       if (role) {
         query = query.where('role', '==', role);

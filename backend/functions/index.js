@@ -14,7 +14,7 @@ if (!admin.apps.length) {
 const authFunctions = require('./auth');
 
 // Import API function
-const { api } = require('./api');
+// const {api} = require('./api');
 
 // Export Cloud Functions
 // Auth Functions
@@ -23,8 +23,8 @@ exports.updateUserProfile = authFunctions.updateUserProfile;
 exports.getUserByPhone = authFunctions.getUserByPhone;
 exports.createCustomToken = authFunctions.createCustomToken;
 exports.deleteUserAccount = authFunctions.deleteUserAccount;
-exports.onUserCreate = authFunctions.onUserCreate;
-exports.onUserDelete = authFunctions.onUserDelete;
+// exports.onUserCreate = authFunctions.onUserCreate;
+// exports.onUserDelete = authFunctions.onUserDelete;
 
 // API Function (Express app)
-exports.api = api;
+// exports.api = api;

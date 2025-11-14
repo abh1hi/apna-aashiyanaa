@@ -14,8 +14,8 @@ const getUsers = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/properties
 // @access  Private/Admin
 const getAdminProperties = asyncHandler(async (req, res) => {
-  const { status } = req.query;
-  let filter = {};
+  const {status} = req.query;
+  const filter = {};
 
   if (status) {
     filter.status = status;

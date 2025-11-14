@@ -1,5 +1,5 @@
 const sharp = require('sharp');
-const { v4: uuidv4 } = require('uuid');
+const {v4: uuidv4} = require('uuid');
 // For prod cloud storage upload (commented for emulator/dev)
 // const { Storage } = require('@google-cloud/storage');
 // const path = require('path');
@@ -9,14 +9,14 @@ const { v4: uuidv4 } = require('uuid');
  * Compress and optimize image buffer
  * @param {Buffer} buffer - Image buffer from multer
  * @param {Object} options - Compression options
- * @returns {Promise<Object>} - Compressed image data
+ * @return {Promise<Object>} - Compressed image data
  */
 const compressImage = async (buffer, options = {}) => {
   try {
     const {
       maxSizeInBytes = 2 * 1024 * 1024, // 2MB default
       quality = 80,
-      format = 'webp'
+      format = 'webp',
     } = options;
     if (!buffer || !(buffer instanceof Buffer) || buffer.length === 0) {
       throw new Error('Invalid image input: input is not a non-empty Buffer');
@@ -27,22 +27,22 @@ const compressImage = async (buffer, options = {}) => {
     } catch (metaErr) {
       throw new Error('Unable to get image metadata, likely non-image file: ' + metaErr.message);
     }
-    let compressed = buffer;
+    const compressed = buffer;
     let currentQuality = quality;
     let outputBuffer;
     while (currentQuality >= 20) {
       if (format === 'webp') {
         outputBuffer = await sharp(compressed)
-          .webp({ quality: currentQuality })
-          .toBuffer();
+            .webp({quality: currentQuality})
+            .toBuffer();
       } else if (format === 'jpeg') {
         outputBuffer = await sharp(compressed)
-          .jpeg({ quality: currentQuality, mozjpeg: true })
-          .toBuffer();
+            .jpeg({quality: currentQuality, mozjpeg: true})
+            .toBuffer();
       } else {
         outputBuffer = await sharp(compressed)
-          .png({ quality: currentQuality, compressionLevel: 9 })
-          .toBuffer();
+            .png({quality: currentQuality, compressionLevel: 9})
+            .toBuffer();
       }
       if (outputBuffer.length <= maxSizeInBytes) {
         break;
@@ -54,9 +54,9 @@ const compressImage = async (buffer, options = {}) => {
       const newWidth = Math.floor(metadata.width * scaleFactor);
       const newHeight = Math.floor(metadata.height * scaleFactor);
       outputBuffer = await sharp(compressed)
-        .resize(newWidth, newHeight, { fit: 'inside' })
-        .webp({ quality: 70 })
-        .toBuffer();
+          .resize(newWidth, newHeight, {fit: 'inside'})
+          .webp({quality: 70})
+          .toBuffer();
     }
     // --- STORAGE UPLOAD SECTION (Commented for emulator) ---
     /*
@@ -92,7 +92,7 @@ const compressImage = async (buffer, options = {}) => {
     console.error('Image compression error:', error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -100,7 +100,7 @@ const compressImage = async (buffer, options = {}) => {
  * Process multiple images
  * @param {Array} files - Array of multer file objects
  * @param {Object} options - Compression options
- * @returns {Promise<Array>} - Array of processed images (URLs or data URLs for emulator)
+ * @return {Promise<Array>} - Array of processed images (URLs or data URLs for emulator)
  */
 const processImages = async (files, options = {}) => {
   if (!files || files.length === 0) {
@@ -126,7 +126,7 @@ const processImages = async (files, options = {}) => {
         originalSize: result.originalSize,
         compressionRatio: result.compressionRatio,
         originalName: file.originalname,
-        mimeType: file.mimetype
+        mimeType: file.mimetype,
       });
     }
   }
@@ -140,5 +140,5 @@ const isValidImage = (file) => {
 module.exports = {
   compressImage,
   processImages,
-  isValidImage
+  isValidImage,
 };
