@@ -8,6 +8,7 @@ const {
 
 // Define the routes for user authentication
 router.post('/phone', registerOrLoginWithPhone);
+router.post('/register', registerOrLoginWithPhone);
 
 // Password-based login
 router.post('/login/password', loginWithPassword);

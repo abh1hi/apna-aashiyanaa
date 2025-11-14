@@ -14,7 +14,7 @@ if (!admin.apps.length) {
 const authFunctions = require('./auth');
 
 // Import API function
-// const {api} = require('./api');
+const {api} = require('./api');
 
 // Export Cloud Functions
 // Auth Functions
@@ -27,4 +27,4 @@ exports.deleteUserAccount = authFunctions.deleteUserAccount;
 // exports.onUserDelete = authFunctions.onUserDelete;
 
 // API Function (Express app)
-// exports.api = api;
+exports.api = api;
