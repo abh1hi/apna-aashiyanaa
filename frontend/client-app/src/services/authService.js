@@ -1,6 +1,6 @@
 import { 
   auth 
-} from ''../firebaseConfig'';
+} from '../firebaseConfig';
 import { 
   signInWithPhoneNumber,
   RecaptchaVerifier,
