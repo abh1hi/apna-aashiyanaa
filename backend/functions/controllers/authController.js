@@ -1,22 +1,13 @@
-const {validationResult} = require('express-validator');
 const User = require('../models/User');
 const admin = require('firebase-admin');
-const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
-const functions = require('firebase-functions');
-
-// Generates a JWT token for a given user ID.
-const generateToken = (id) => {
-  return jwt.sign({id}, functions.config().jwt.secret, {
-    expiresIn: '30d',
-  });
-};
 
 // @desc    Register or Login user with phone number
 // @route   POST /api/auth/phone
+// @route   POST /api/auth/register
 // @access  Public
 const registerOrLoginWithPhone = asyncHandler(async (req, res) => {
-  const {idToken} = req.body;
+  const {idToken, name, aadhaar, email} = req.body;
 
   if (!idToken) {
     res.status(400);
@@ -24,43 +15,76 @@ const registerOrLoginWithPhone = asyncHandler(async (req, res) => {
   }
 
   try {
+    // Verify the Firebase ID token
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const {phone_number: phoneNumber, uid: firebaseUid} = decodedToken;
 
-    const user = await User.findByFirebaseUid(firebaseUid);
+    // Check if user already exists
+    let user = await User.findByFirebaseUid(firebaseUid);
 
     if (user) {
-      // User exists, log them in
-      res.json({
-        _id: user.id,
-        name: user.name,
-        mobile: user.mobile,
-        role: user.role,
-        token: generateToken(user._id),
+      // User exists, return existing user info
+      return res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          firebaseUid: user.firebaseUid,
+          phone: user.phone || phoneNumber,
+          name: user.name,
+          email: user.email,
+          aadhaar: user.aadhaar,
+          role: user.role,
+          isActive: user.isActive,
+          createdAt: user.createdAt
+        },
+        isNewUser: false
       });
     } else {
       // User does not exist, create a new user
-      const {name} = req.body; // Or get name from other sources
-      const newUser = {
+      const userData = {
         firebaseUid,
-        mobile: phoneNumber,
-        name,
+        phone: phoneNumber,
+        name: name || null,
+        email: email || null,
+        aadhaar: aadhaar || null,
         role: 'user',
       };
 
-      const createdUser = await User.create(newUser);
+      const createdUser = await User.create(userData);
 
-      res.status(201).json({
-        _id: createdUser.id,
-        name: createdUser.name,
-        mobile: createdUser.mobile,
-        role: createdUser.role,
-        token: generateToken(createdUser._id),
+      return res.status(201).json({
+        success: true,
+        message: 'Registration successful',
+        user: {
+          id: createdUser.id,
+          firebaseUid: createdUser.firebaseUid,
+          phone: createdUser.phone,
+          name: createdUser.name,
+          email: createdUser.email,
+          aadhaar: createdUser.aadhaar,
+          role: createdUser.role,
+          isActive: createdUser.isActive,
+          createdAt: createdUser.createdAt
+        },
+        isNewUser: true
       });
     }
   } catch (error) {
-    console.error('Error verifying ID token:', error);
-    res.status(401).send('Unauthorized');
+    console.error('Error during registration/login:', error);
+    
+    if (error.code === 'auth/id-token-expired') {
+      res.status(401);
+      throw new Error('Token expired. Please sign in again.');
+    }
+    
+    if (error.code === 'auth/invalid-id-token') {
+      res.status(401);
+      throw new Error('Invalid token. Please sign in again.');
+    }
+    
+    res.status(500);
+    throw new Error('Registration/Login failed: ' + error.message);
   }
 });
 
@@ -96,14 +120,22 @@ const loginWithPassword = asyncHandler(async (req, res) => {
     throw new Error('Invalid credentials');
   }
 
-  // Return user data with token
+  // Create custom Firebase token for this user
+  const customToken = await admin.auth().createCustomToken(user.firebaseUid);
+
+  // Return user data with custom token
   res.json({
-    _id: user.id,
-    name: user.name,
-    mobile: user.mobile,
-    aadhaar: user.aadhaar,
-    role: user.role,
-    token: generateToken(user._id),
+    success: true,
+    message: 'Login successful',
+    user: {
+      id: user.id,
+      firebaseUid: user.firebaseUid,
+      name: user.name,
+      phone: user.phone,
+      aadhaar: user.aadhaar,
+      role: user.role,
+    },
+    customToken // Client should use this to signInWithCustomToken
   });
 });
 
@@ -121,12 +153,15 @@ const checkAuthMethod = asyncHandler(async (req, res) => {
   const user = await User.findByPhone(mobile);
 
   if (!user) {
-    res.status(404);
-    throw new Error('User not found');
+    return res.status(404).json({
+      success: false,
+      error: 'User not found'
+    });
   }
 
   res.json({
-    mobile: user.mobile,
+    success: true,
+    mobile: user.phone,
     hasPassword: !!user.password,
     availableMethods: user.password ? ['otp', 'password'] : ['otp'],
   });
