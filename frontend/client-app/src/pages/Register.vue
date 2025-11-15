@@ -106,6 +106,7 @@
       <OTPVerification
         v-else
         :mobile="formData.mobile"
+        identifier="register-otp-verification"
         @verify="handleVerifyOTPAndRegister"
         @resend="handleSendOTP"
       />
@@ -224,7 +225,7 @@ export default {
         if (this.formData.password && this.formData.password.trim() !== '') {
           userData.password = this.formData.password;
         }
-        if (this.formData.aadhaar && this.formData.aadhaar.trim() !== '') {
+        if (.formData.aadhaar && this.formData.aadhaar.trim() !== '') {
           userData.aadhaar = this.formData.aadhaar.trim();
         }
 

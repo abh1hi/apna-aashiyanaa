@@ -45,6 +45,7 @@
       <OTPVerification
         v-else
         :mobile="mobile"
+        identifier="login-otp-verification"
         @verify="handleVerifyOTPAndLogin"
         @resend="handleSendOTP"
       />
