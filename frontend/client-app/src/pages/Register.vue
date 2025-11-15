@@ -9,7 +9,7 @@
       </div>
 
       <!-- Registration Form -->
-      <form v-if="!showOTP" class="auth-form" @submit.prevent="handleRegister">
+      <form v-if="!showOTP" class="auth-form" @submit.prevent="handleSendOTP">
         <div class="form-group">
           <label for="name" class="sr-only">Full Name</label>
           <input
@@ -103,15 +103,17 @@
       <OTPVerification
         v-else
         :mobile="formData.mobile"
-        :user-id="userId"
-        @verify="handleVerifyOTP"
-        @resend="handleRegister"
+        @verify="handleVerifyOTPAndRegister"
+        @resend="handleSendOTP"
       />
 
       <p class="switch-auth-text">
         Already have an account? 
         <router-link to="/login" class="switch-auth-link">Sign in</router-link>
       </p>
+
+      <!-- reCAPTCHA Container -->
+      <div id="recaptcha-container"></div>
     </div>
   </div>
 </template>
@@ -139,34 +141,35 @@ export default {
         aadhaar: '',
         role: 'buyer'
       },
-      userId: '',
       showOTP: false,
       showPassword: false,
       error: '',
       isLoading: false,
     };
   },
+  mounted() {
+    try {
+      authService.initRecaptcha('recaptcha-container');
+    } catch (err) {
+      console.error('Failed to initialize reCAPTCHA', err);
+      this.error = 'Failed to load authentication service. Please refresh the page.';
+    }
+  },
   methods: {
-    async handleRegister() {
-      // Validate inputs
+    async handleSendOTP() {
       if (!this.formData.name || this.formData.name.trim() === '') {
         this.error = 'Please enter your full name';
         return;
       }
-
       const mobileRegex = /^[0-9]{10}$/;
       if (!this.formData.mobile || !mobileRegex.test(this.formData.mobile)) {
         this.error = 'Please enter a valid 10-digit mobile number';
         return;
       }
-
-      // Validate password if provided
       if (this.formData.password && this.formData.password.length < 6) {
         this.error = 'Password must be at least 6 characters long';
         return;
       }
-
-      // Validate Aadhaar if provided
       if (this.formData.aadhaar && this.formData.aadhaar.trim() !== '') {
         const aadhaarRegex = /^[0-9]{12}$/;
         if (!aadhaarRegex.test(this.formData.aadhaar)) {
@@ -179,43 +182,50 @@ export default {
       this.isLoading = true;
 
       try {
-        const userData = {
-          name: this.formData.name.trim(),
-          mobile: this.formData.mobile.trim(),
-          role: this.formData.role
-        };
-
-        // Include password if provided
-        if (this.formData.password && this.formData.password.trim() !== '') {
-          userData.password = this.formData.password;
+        const result = await authService.loginWithOTP(this.formData.mobile);
+        if (result.success) {
+          this.showOTP = true;
+        } else {
+          this.error = result.message || 'Failed to send OTP. Please check the number and try again.';
         }
-
-        // Include aadhaar if provided
-        if (this.formData.aadhaar && this.formData.aadhaar.trim() !== '') {
-          userData.aadhaar = this.formData.aadhaar.trim();
-        }
-
-        await authService.register(userData);
-        this.router.push('/');
       } catch (err) {
-        console.error('Registration error:', err);
-        this.error = err.message || 'Failed to register. Please try again.';
+        console.error('Send OTP error:', err);
+        this.error = err.message || 'Failed to send OTP. Please try again.';
       } finally {
         this.isLoading = false;
       }
     },
 
-    async handleVerifyOTP(otp) {
+    async handleVerifyOTPAndRegister(otp) {
       this.error = '';
+      this.isLoading = true;
 
       try {
-        const response = await authService.verifyOTP(this.userId, otp);
-        
-        // Redirect to home page after successful registration
-        this.router.push('/');
+        const userData = {
+          name: this.formData.name.trim(),
+          mobile: this.formData.mobile.trim(),
+          role: this.formData.role,
+        };
+
+        if (this.formData.password && this.formData.password.trim() !== '') {
+          userData.password = this.formData.password;
+        }
+        if (this.formData.aadhaar && this.formData.aadhaar.trim() !== '') {
+          userData.aadhaar = this.formData.aadhaar.trim();
+        }
+
+        const response = await authService.register(userData, otp);
+        if (response.success) {
+          this.router.push('/');
+        } else {
+          this.error = response.message || 'Registration failed.';
+        }
       } catch (err) {
-        console.error('OTP verification error:', err);
-        throw new Error(err.message || 'Invalid OTP. Please try again.');
+        console.error('Registration error after OTP:', err);
+        this.error = err.response?.data?.message || err.message || 'Invalid OTP or registration failed.';
+        this.showOTP = false; // Go back to form on failure
+      } finally {
+        this.isLoading = false;
       }
     },
 
@@ -242,6 +252,10 @@ export default {
   background-color: #ffffff;
   border-radius: 24px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+}
+
+#recaptcha-container {
+  margin-top: 1rem;
 }
 
 .auth-title {
