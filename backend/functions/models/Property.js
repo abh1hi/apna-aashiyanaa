@@ -152,8 +152,7 @@ class Property {
    */
   static async search(searchTerm, filters = {}) {
     try {
-      // Note: Firestore doesn't have full-text search
-      // This is a basic implementation. For production, use Algolia or similar
+      // Note: Firestore doesn't have full-text search. This is a basic and inefficient implementation. For production, use a dedicated search service like Algolia or Elasticsearch.
       const allProperties = await this.findAll(filters);
       
       const searchLower = searchTerm.toLowerCase();
