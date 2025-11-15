@@ -1,57 +1,64 @@
 const User = require('../models/User');
 const asyncHandler = require('express-async-handler');
 
-// @desc    Get user profile
-// @route   GET /api/users/:id
-// @access  Private
+/**
+ * @desc    Get the profile of the currently authenticated user.
+ * @route   GET /api/users/profile
+ * @access  Private
+ */
 const getUserProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id);
+  // The user's Firebase UID is attached to the request by the auth middleware.
+  // We use this to find the corresponding user in our database.
+  const firebaseUid = req.user.uid;
+
+  if (!firebaseUid) {
+    res.status(401);
+    throw new Error('Not authorized, Firebase UID not found.');
+  }
+
+  const user = await User.findByFirebaseUid(firebaseUid);
 
   if (user) {
-    res.json({
-      _id: user._id,
-      name: user.name,
-      mobile: user.mobile,
-      aadhaar: user.aadhaar,
-      role: user.role,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    });
+    // Return the full user profile stored in our database.
+    res.json(user);
   } else {
     res.status(404);
-    throw new Error('User not found');
+    throw new Error('User not found in database.');
   }
 });
 
-// @desc    Update user profile
-// @route   PUT /api/users/:id
-// @access  Private
+/**
+ * @desc    Update the profile of the currently authenticated user.
+ * @route   PUT /api/users/profile
+ * @access  Private
+ */
 const updateUserProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id);
+  const firebaseUid = req.user.uid;
+
+  if (!firebaseUid) {
+    res.status(401);
+    throw new Error('Not authorized, Firebase UID not found.');
+  }
+
+  // First, find the user's document ID based on their Firebase UID.
+  const user = await User.findByFirebaseUid(firebaseUid);
 
   if (user) {
-    user.name = req.body.name || user.name;
-    user.mobile = req.body.mobile || user.mobile;
-    
-    // Only update aadhaar if provided
-    if (req.body.aadhaar !== undefined) {
-      user.aadhaar = req.body.aadhaar;
-    }
+    // Prepare the data for the update.
+    // We only allow certain fields to be updated via this endpoint.
+    const updateData = {
+      name: req.body.name || user.name,
+      // Aadhaar can be updated or cleared if sent in the body.
+      aadhaar: req.body.aadhaar !== undefined ? req.body.aadhaar.trim() : user.aadhaar,
+    };
 
-    const updatedUser = await user.save();
+    // Now, call the update method using the user's actual document ID (_id).
+    const updatedUser = await User.update(user._id, updateData);
 
-    res.json({
-      _id: updatedUser._id,
-      name: updatedUser.name,
-      mobile: updatedUser.mobile,
-      aadhaar: updatedUser.aadhaar,
-      role: updatedUser.role,
-      createdAt: updatedUser.createdAt,
-      updatedAt: updatedUser.updatedAt,
-    });
+    res.json(updatedUser);
   } else {
     res.status(404);
-    throw new Error('User not found');
+    throw new Error('User not found.');
   }
 });
 
