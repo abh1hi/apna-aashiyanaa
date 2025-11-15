@@ -225,7 +225,7 @@ export default {
         if (this.formData.password && this.formData.password.trim() !== '') {
           userData.password = this.formData.password;
         }
-        if (.formData.aadhaar && this.formData.aadhaar.trim() !== '') {
+        if (this.formData.aadhaar && this.formData.aadhaar.trim() !== '') {
           userData.aadhaar = this.formData.aadhaar.trim();
         }
 
