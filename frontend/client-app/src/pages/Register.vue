@@ -79,6 +79,7 @@
       <!-- OTP Verification Component -->
       <OTPVerification
         v-else
+        identifier="register-otp-verification"
         :mobile="formData.mobile"
         @verify="handleVerifyOTPAndRegister"
         @resend="handleSendOTP"

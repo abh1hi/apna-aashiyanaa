@@ -3,7 +3,6 @@ import authService from './authService';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-// Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -11,44 +10,35 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to add auth token from localStorage
-api.interceptors.request.use((config) => {
-  const token = authService.getToken(); // Using getToken() from authService
+api.interceptors.request.use(async (config) => {
+  const token = await authService.getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// Response interceptor for handling 401 errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // If a 401 error occurs, log the user out
       authService.logout();
-      // Redirect to login page
       window.location.href = '/login';
     }
     return Promise.reject(error);
   }
 );
 
-// Auth API
 export const authApi = {
   loginWithPhone: (idToken) => api.post('/auth/phone', { idToken }),
   register: (userData) => api.post('/auth/register', userData),
-  checkAuthMethod: (mobile) => api.post('/auth/check-auth-method', { mobile }),
-  loginWithPassword: (mobile, password) => api.post('/auth/login/password', { mobile, password }),
 };
 
-// User API (Corrected Paths)
 export const userApi = {
   getProfile: () => api.get('/users/profile'),
   updateProfile: (userData) => api.put('/users/profile', userData),
 };
 
-// Property API
 export const propertyApi = {
   getProperties: (params = {}) => api.get('/properties', { params }),
   getProperty: (id) => api.get(`/properties/${id}`),
@@ -56,24 +46,5 @@ export const propertyApi = {
   updateProperty: (id, propertyData) => api.put(`/properties/${id}`, propertyData),
   deleteProperty: (id) => api.delete(`/properties/${id}`),
 };
-
-// Property data transformation
-export const transformPropertyData = (backendData) => {
-  return {
-    _id: backendData._id,
-    name: backendData.name,
-    description: backendData.description,
-    price: backendData.variants?.[0]?.price || backendData.price,
-    images: backendData.images || [],
-    location: backendData.location,
-    type: backendData.categories?.[0]?.name || 'For Sale',
-    bedrooms: backendData.specifications?.bedrooms,
-    bathrooms: backendData.specifications?.bathrooms,
-    area: backendData.specifications?.area,
-    agent: backendData.user,
-    createdAt: backendData.createdAt,
-    updatedAt: backendData.updatedAt
-  }
-}
 
 export default api;
