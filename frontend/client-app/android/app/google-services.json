@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "920496133974",
+    "project_id": "apnaashiyanaa-app",
+    "storage_bucket": "apnaashiyanaa-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:920496133974:android:36072bd2eef184b6d5a8f7",
+        "android_client_info": {
+          "package_name": "com.apnaashiyanaa.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjHNJEApyELowG97DI1u36VMcNExf7BEU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

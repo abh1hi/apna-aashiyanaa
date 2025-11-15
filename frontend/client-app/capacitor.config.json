@@ -1,0 +1,18 @@
+{
+  "appId": "com.property.app",
+  "appName": "property-dealer-app-1",
+  "webDir": "dist",
+  "bundledWebRuntime": true,
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
+    "CapacitorCookies": {
+      "enabled": true
+    },
+    "FirebaseAuthentication": {
+      "skipNativeAuth": false,
+      "providers": ["phone"]
+    }
+  }
+}

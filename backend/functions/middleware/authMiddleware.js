@@ -4,6 +4,7 @@
   'protect' verifies the JWT, 'admin' checks for admin role, 'buyer' checks for buyer role,
   and 'seller' checks for seller role.
 */
+/*
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
@@ -73,3 +74,17 @@ const buyerOrSeller = (req, res, next) => {
 };
 
 module.exports = { protect, admin, buyer, seller, buyerOrSeller };
+*/
+
+// Temporarily disable authentication for development
+const protect = (req, res, next) => {
+  // For development purposes, you might want to mock a user here
+  req.user = {_id: 'mockUserId', role: 'seller'}; // Mock user for development
+  next();
+};
+const admin = (req, res, next) => next();
+const buyer = (req, res, next) => next();
+const seller = (req, res, next) => next();
+const buyerOrSeller = (req, res, next) => next();
+
+module.exports = {protect, admin, buyer, seller, buyerOrSeller};
