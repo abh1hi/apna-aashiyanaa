@@ -58,6 +58,4 @@ app.use((err, req, res, next) => {
 
 // Export Express app as Cloud Function
 // FIXED: Changed region from asia-south1 to us-central1 to match deployment
-exports.api = functions
-  .region('us-central1')  // Changed to match your deployed endpoint
-  .https.onRequest(app);
+exports.api = functions.https.onRequest(app);
