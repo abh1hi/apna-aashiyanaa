@@ -45,9 +45,11 @@ app.get('/health', (req, res) => {
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const propertyRoutes = require('./routes/propertyRoutes');
 
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
+app.use('/properties', propertyRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
