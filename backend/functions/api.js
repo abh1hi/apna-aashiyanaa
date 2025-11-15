@@ -21,14 +21,12 @@ const corsOptions = {
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204  // For legacy browser support
 };
 
-// Apply CORS middleware FIRST - before other middleware
+// Apply CORS middleware FIRST - handles all preflight requests automatically
 app.use(cors(corsOptions));
-
-// Handle preflight requests explicitly
-app.options('*', cors(corsOptions));
 
 // Body parsing middleware
 app.use(express.json());
