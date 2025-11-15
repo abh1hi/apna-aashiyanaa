@@ -20,7 +20,7 @@ class AuthService {
    */
   initRecaptcha(containerId = 'recaptcha-container') {
     if (!this.recaptchaVerifier) {
-      this.recaptchaVerifier = new RecaptchaVerifier(containerId, {
+      this.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
         size: 'invisible',
         callback: (response) => {
           console.log('reCAPTCHA solved');
@@ -29,7 +29,7 @@ class AuthService {
           console.log('reCAPTCHA expired');
           this.recaptchaVerifier = null;
         }
-      }, auth);
+      });
     }
     return this.recaptchaVerifier;
   }
@@ -100,7 +100,7 @@ class AuthService {
       };
     } catch (error) {
       console.error('Error sending OTP:', error);
-      this.recaptchaVerifier = null;
+      // Do not reset the verifier here, Firebase handles it.
       return {
         success: false,
         message: error.message || 'Failed to send OTP'
