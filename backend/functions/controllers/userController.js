@@ -5,8 +5,8 @@ const User = require('../models/User');
 // @route   GET /api/users/profile
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
-  // The user object is attached to the request in the 'protect' middleware
-  const user = req.user;
+  // Fetch the user from the database using the ID from the protect middleware
+  const user = await User.findById(req.user.id);
 
   if (user) {
     res.json({
