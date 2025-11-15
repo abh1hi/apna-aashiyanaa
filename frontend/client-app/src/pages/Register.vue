@@ -1,10 +1,21 @@
+<!--
+  This is the main registration component for new users.
+  It handles the complete signup flow using Firebase phone authentication:
+  1. Collects essential user details: Full Name, Mobile Number, and optional Aadhaar.
+     The password field has been completely removed in favor of OTP-only authentication.
+  2. Manages and validates the reCAPTCHA challenge.
+  3. Calls authService to send an OTP to the provided mobile number.
+  4. Switches to the OTP verification view.
+  5. Calls authService to verify the OTP and create the new user profile on the backend.
+  6. On successful registration, redirects the user to their new profile page.
+-->
 <template>
   <div class="auth-page bg-gray-50">
     <div class="auth-container">
       <div class="text-center">
         <h1 class="auth-title text-gray-900">Create Account</h1>
         <p class="auth-subtitle text-gray-600">
-          {{ showOTP ? 'Enter the OTP sent to your mobile' : 'Sign up as a buyer' }}
+          {{ showOTP ? 'Enter the OTP sent to your mobile' : 'Sign up with your mobile number' }}
         </p>
       </div>
 
@@ -19,7 +30,6 @@
             required
             placeholder="Full Name"
             class="auth-input"
-            :class="{ 'input-error': error }"
           />
         </div>
 
@@ -34,42 +44,7 @@
             required
             placeholder="Mobile Number (10 digits)"
             class="auth-input"
-            :class="{ 'input-error': error }"
           />
-        </div>
-
-        <div class="form-group">
-          <label for="password" class="input-label">
-            Password (Optional)
-            <span class="text-sm text-gray-500 font-normal ml-1">- Set for password login</span>
-          </label>
-          <div class="password-input-wrapper">
-            <input
-              id="password"
-              v-model="formData.password"
-              :type="showPassword ? 'text' : 'password'"
-              placeholder="Enter password (min 6 characters)"
-              minlength="6"
-              class="auth-input"
-            />
-            <button 
-              v-if="formData.password"
-              type="button"
-              @click="togglePasswordVisibility"
-              class="password-toggle"
-            >
-              <svg v-if="!showPassword" class="password-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              <svg v-else class="password-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-              </svg>
-            </button>
-          </div>
-          <p class="text-xs text-gray-500 mt-1">
-            You can login with password or OTP. Leave blank to use OTP only.
-          </p>
         </div>
 
         <div class="form-group">
@@ -82,7 +57,6 @@
             maxlength="12"
             placeholder="Aadhaar Number (Optional, 12 digits)"
             class="auth-input"
-            :class="{ 'input-error': error }"
           />
         </div>
 
@@ -95,18 +69,17 @@
           type="submit" 
           :disabled="isLoading || !recaptchaSolved"
           class="auth-button bg-blue-600 hover:bg-blue-700"
-          :class="{ 'button-loading': isLoading, 'opacity-50 cursor-not-allowed': !recaptchaSolved }"
+          :class="{ 'opacity-50 cursor-not-allowed': !recaptchaSolved }"
         >
-          <span v-if="!isLoading">Send OTP</span>
-          <span v-else>Sending...</span>
+          <span v-if="isLoading">Sending...</span>
+          <span v-else>Send OTP</span>
         </button>
       </form>
 
-      <!-- OTP Verification -->
+      <!-- OTP Verification Component -->
       <OTPVerification
         v-else
         :mobile="formData.mobile"
-        identifier="register-otp-verification"
         @verify="handleVerifyOTPAndRegister"
         @resend="handleSendOTP"
       />
@@ -120,279 +93,138 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, reactive, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import authService from '../services/authService';
 import OTPVerification from '../components/OTPVerification.vue';
-import { useRouter } from 'vue-router';
 
-export default {
-  name: 'Register',
-  components: {
-    OTPVerification
-  },
-  setup() {
-    const router = useRouter();
-    return { router };
-  },
-  data() {
-    return {
-      formData: {
-        name: '',
-        mobile: '',
-        password: '',
-        aadhaar: '',
-        role: 'buyer'
-      },
-      showOTP: false,
-      showPassword: false,
-      error: '',
-      isLoading: false,
-      recaptchaSolved: false,
-    };
-  },
-  mounted() {
-    try {
-      authService.initRecaptcha('recaptcha-container', (solved) => {
-        this.recaptchaSolved = solved;
-        if (!solved) {
-          this.error = 'reCAPTCHA response expired. Please solve it again.';
-        }
-      });
-    } catch (err) {
-      console.error('Failed to initialize reCAPTCHA', err);
-      this.error = 'Failed to load authentication service. Please refresh the page.';
+const router = useRouter();
+
+// Reactive state for the form data and component logic
+const formData = reactive({
+  name: '',
+  mobile: '',
+  aadhaar: '',
+  role: 'buyer' // Default role for new sign-ups
+});
+
+const showOTP = ref(false);
+const error = ref('');
+const isLoading = ref(false);
+const recaptchaSolved = ref(false);
+
+// Initialize reCAPTCHA when the component mounts
+onMounted(() => {
+  try {
+    authService.initRecaptcha('recaptcha-container', (solved) => {
+      recaptchaSolved.value = solved;
+      if (!solved) {
+        error.value = 'reCAPTCHA response expired. Please solve it again.';
+      }
+    });
+  } catch (err) {
+    console.error('Failed to initialize reCAPTCHA', err);
+    error.value = 'Failed to load authentication service. Please refresh the page.';
+  }
+});
+
+const validateForm = () => {
+  error.value = '';
+  if (!formData.name || formData.name.trim() === '') {
+    error.value = 'Please enter your full name';
+    return false;
+  }
+  const mobileRegex = /^[0-9]{10}$/;
+  if (!formData.mobile || !mobileRegex.test(formData.mobile)) {
+    error.value = 'Please enter a valid 10-digit mobile number';
+    return false;
+  }
+  if (formData.aadhaar && formData.aadhaar.trim() !== '') {
+    const aadhaarRegex = /^[0-9]{12}$/;
+    if (!aadhaarRegex.test(formData.aadhaar)) {
+      error.value = 'Aadhaar must be exactly 12 digits';
+      return false;
     }
-  },
-  methods: {
-    validateForm() {
-      this.error = '';
-      if (!this.formData.name || this.formData.name.trim() === '') {
-        this.error = 'Please enter your full name';
-        return false;
-      }
-      const mobileRegex = /^[0-9]{10}$/;
-      if (!this.formData.mobile || !mobileRegex.test(this.formData.mobile)) {
-        this.error = 'Please enter a valid 10-digit mobile number';
-        return false;
-      }
-      if (this.formData.password && this.formData.password.length < 6) {
-        this.error = 'Password must be at least 6 characters long';
-        return false;
-      }
-      if (this.formData.aadhaar && this.formData.aadhaar.trim() !== '') {
-        const aadhaarRegex = /^[0-9]{12}$/;
-        if (!aadhaarRegex.test(this.formData.aadhaar)) {
-          this.error = 'Aadhaar must be exactly 12 digits';
-          return false;
-        }
-      }
-      return true;
-    },
-
-    async handleSendOTP() {
-      if (!this.validateForm()) return;
-
-      this.isLoading = true;
-      this.error = '';
-
-      try {
-        const result = await authService.loginWithOTP(this.formData.mobile);
-        this.showOTP = true;
-      } catch (err) {
-        console.error('Send OTP error:', err);
-        this.error = err.message || 'Failed to send OTP. Please try again.';
-        // Reset reCAPTCHA on failure to allow user to try again
-        this.recaptchaSolved = false;
-        authService.initRecaptcha('recaptcha-container', (solved) => {
-          this.recaptchaSolved = solved;
-        });
-      } finally {
-        this.isLoading = false;
-      }
-    },
-
-    async handleVerifyOTPAndRegister(otp) {
-      this.error = '';
-      this.isLoading = true;
-
-      try {
-        const userData = {
-          name: this.formData.name.trim(),
-          mobile: this.formData.mobile.trim(),
-          role: this.formData.role,
-        };
-
-        if (this.formData.password && this.formData.password.trim() !== '') {
-          userData.password = this.formData.password;
-        }
-        if (.formData.aadhaar && this.formData.aadhaar.trim() !== '') {
-          userData.aadhaar = this.formData.aadhaar.trim();
-        }
-
-        const response = await authService.register(userData, otp);
-        if (response.success) {
-          this.router.push('/');
-        } else {
-          this.error = response.message || 'Registration failed.';
-        }
-      } catch (err) {
-        console.error('Registration error after OTP:', err);
-        this.error = err.response?.data?.message || err.message || 'Invalid OTP or registration failed.';
-        this.showOTP = false; // Go back to form on failure
-      } finally {
-        this.isLoading = false;
-      }
-    },
-
-    togglePasswordVisibility() {
-      this.showPassword = !this.showPassword;
-    },
-  },
+  }
+  return true;
 };
+
+// Step 1: Validate form and send OTP via authService
+const handleSendOTP = async () => {
+  if (!validateForm()) return;
+  if (!recaptchaSolved.value) {
+    error.value = 'Please solve the reCAPTCHA before proceeding.';
+    return;
+  }
+
+  isLoading.value = true;
+  error.value = '';
+
+  try {
+    await authService.sendOTP(formData.mobile);
+    showOTP.value = true; // Move to OTP verification step
+  } catch (err) {
+    console.error('Send OTP error:', err);
+    error.value = err.message || 'Failed to send OTP. This number may already be in use.';
+    recaptchaSolved.value = false; // Reset reCAPTCHA to allow a retry
+    authService.initRecaptcha('recaptcha-container', (solved) => {
+      recaptchaSolved.value = solved;
+    });
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Step 2: Verify OTP and create the user account via authService
+const handleVerifyOTPAndRegister = async (otp) => {
+  error.value = '';
+  isLoading.value = true;
+
+  // Prepare user data, excluding the mobile number which is handled by Firebase auth
+  const registrationData = {
+    name: formData.name.trim(),
+    role: formData.role,
+    ...(formData.aadhaar && { aadhaar: formData.aadhaar.trim() })
+  };
+
+  try {
+    // The single, unified method for registration
+    const response = await authService.verifyOTPAndRegister(otp, registrationData);
+    
+    if (response.success) {
+      // On success, redirect the new user to their profile page
+      router.push({ name: 'UserProfile' });
+    } else {
+      error.value = response.message || 'Registration failed.';
+      showOTP.value = false; // Revert to form on failure
+    }
+  } catch (err) {
+    console.error('Registration error after OTP:', err);
+    error.value = err.message || 'Invalid OTP or registration failed.';
+    showOTP.value = false; // Revert to form on failure
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 </script>
 
 <style scoped>
-/* Your existing styles are fine */
-
-.auth-page {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  padding: 1rem;
-}
-
-.auth-container {
-  width: 100%;
-  max-width: 440px;
-  padding: 2.5rem;
-  background-color: #ffffff;
-  border-radius: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
-}
-
-.auth-title {
-  font-size: 2.25rem;
-  font-weight: 800;
-  letter-spacing: -0.025em;
-}
-
-.auth-subtitle {
-  margin-top: 0.5rem;
-  font-size: 1rem;
-  line-height: 1.5;
-}
-
-.auth-form {
-  margin-top: 2rem;
-}
-
-.form-group {
-  margin-bottom: 1.25rem;
-}
-
-.input-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #374151;
-}
-
-.auth-input {
-  width: 100%;
-  padding: 1rem 1.25rem;
-  font-size: 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-}
-
-.auth-input:focus {
-  outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-.input-error {
-  border-color: #ef4444;
-}
-
-.password-input-wrapper {
-  position: relative;
-}
-
-.password-toggle {
-  position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.25rem;
-  color: #6b7280;
-  transition: color 0.2s;
-}
-
-.password-toggle:hover {
-  color: #374151;
-}
-
-.password-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-.error-message {
-  color: #ef4444;
-  font-size: 0.875rem;
-  margin-top: 0.5rem;
-  margin-bottom: 1rem;
-  text-align: center;
-}
-
-.auth-button {
-  width: 100%;
-  padding: 1rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #ffffff;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-}
-
-.auth-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.auth-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.button-loading {
-  opacity: 0.7;
-}
-
-.switch-auth-text {
-  text-align: center;
-  margin-top: 2rem;
-  font-size: 0.9rem;
-  color: #4b5563;
-}
-
-.switch-auth-link {
-  font-weight: 600;
-  color: #2563eb;
-  text-decoration: none;
-  transition: color 0.2s ease-in-out;
-}
-
-.switch-auth-link:hover {
-  color: #1d4ed8;
-}
-
+/* Component-specific styles */
+.auth-page { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem; }
+.auth-container { width: 100%; max-width: 440px; padding: 2.5rem; background-color: #ffffff; border-radius: 24px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05); }
+.auth-title { font-size: 2.25rem; font-weight: 800; letter-spacing: -0.025em; }
+.auth-subtitle { margin-top: 0.5rem; font-size: 1rem; line-height: 1.5; }
+.auth-form { margin-top: 2rem; }
+.form-group { margin-bottom: 1.25rem; }
+.auth-input { width: 100%; padding: 1rem 1.25rem; font-size: 1rem; border: 1px solid #e2e8f0; border-radius: 12px; transition: all 0.2s ease; }
+.auth-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+.error-message { color: #ef4444; font-size: 0.875rem; text-align: center; margin-bottom: 1rem; }
+.auth-button { width: 100%; padding: 1rem; font-size: 1rem; font-weight: 600; color: #ffffff; border: none; border-radius: 12px; cursor: pointer; transition: all 0.2s ease-in-out; }
+.auth-button:hover:not(:disabled) { transform: translateY(-1px); }
+.auth-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.switch-auth-text { text-align: center; margin-top: 2rem; font-size: 0.9rem; color: #4b5563; }
+.switch-auth-link { font-weight: 600; color: #2563eb; text-decoration: none; transition: color 0.2s ease-in-out; }
+.switch-auth-link:hover { color: #1d4ed8; }
 </style>
