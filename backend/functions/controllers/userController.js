@@ -5,8 +5,9 @@ const User = require('../models/User');
 // @route   GET /api/users/profile
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
-  // Fetch the user from the database using the ID from the protect middleware
-  const user = await User.findById(req.user.id);
+  // The user object is attached to the request in the 'protect' middleware.
+  // We can trust it because the middleware has already verified the user's existence.
+  const user = req.user;
 
   if (user) {
     res.json({
@@ -17,6 +18,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
       role: user.role,
     });
   } else {
+    // This case should not be reached if the 'protect' middleware is effective.
     res.status(404);
     throw new Error('User not found');
   }

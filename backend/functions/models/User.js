@@ -12,6 +12,19 @@ class User {
         const salt = await bcrypt.genSalt(10);
         userData.password = await bcrypt.hash(userData.password, salt);
       }
+      // Check for uniqueness before creating
+      const existingByPhone = await this.findByPhone(userData.phone);
+      if (existingByPhone) {
+          throw new Error('A user with this mobile number already exists.');
+      }
+
+      if (userData.firebaseUid) {
+          const existingByUid = await this.findByFirebaseUid(userData.firebaseUid);
+          if (existingByUid) {
+              throw new Error('A user with this Firebase UID already exists.');
+          }
+      }
+
 
       const docRef = await this.collection.add({
         ...userData,

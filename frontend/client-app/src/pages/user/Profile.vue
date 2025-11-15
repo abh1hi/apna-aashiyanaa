@@ -14,6 +14,10 @@
       </div>
       <button @click="handleSignOut" class="sign-out-button">Sign Out</button>
     </div>
+    <div v-else-if="error" class="error-container">
+      <p>{{ error }}</p>
+      <button @click="() => router.push('/')" class="home-button">Go Home</button>
+    </div>
     <div v-else class="loading-container">
       <p>Loading profile...</p>
     </div>
@@ -30,16 +34,21 @@ export default {
   setup() {
     const router = useRouter();
     const user = ref(null);
+    const error = ref(null);
 
     onMounted(async () => {
       try {
-        // Fetch user data from your backend API
         const userData = await authService.getProfile();
         user.value = userData;
-      } catch (error) {
-        console.error('Failed to fetch profile:', error);
-        // Redirect to login if not authenticated
-        router.push('/login');
+      } catch (err) {
+        console.error('Failed to fetch profile:', err);
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          // If unauthorized, redirect to login.
+          router.push('/login');
+        } else {
+          // For any other error (like 500), show an error message.
+          error.value = 'Failed to load profile. Please try again later.';
+        }
       }
     });
 
@@ -47,17 +56,19 @@ export default {
       try {
         await authService.logout();
         router.push('/login');
-      } catch (error) {
-        console.error('Sign out failed:', error);
+      } catch (err) {
+        console.error('Sign out failed:', err);
+        // Optionally, show a sign-out error to the user
       }
     };
 
-    return { user, handleSignOut };
+    return { user, error, handleSignOut, router };
   },
 };
 </script>
 
 <style scoped>
+/* Existing styles are good, adding styles for the new elements */
 .profile-page {
   display: flex;
   justify-content: center;
@@ -66,7 +77,7 @@ export default {
   background-color: #f3f4f6;
 }
 
-.profile-container {
+.profile-container, .error-container, .loading-container {
   width: 100%;
   max-width: 400px;
   padding: 2rem;
@@ -105,24 +116,36 @@ export default {
   color: #1f2937;
 }
 
-.sign-out-button {
+.sign-out-button, .home-button {
   width: 100%;
   padding: 0.75rem;
   font-size: 1rem;
   font-weight: 600;
   color: white;
-  background-color: #ef4444;
   border: none;
   border-radius: 12px;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
+.sign-out-button {
+  background-color: #ef4444;
+}
+
 .sign-out-button:hover {
   background-color: #dc2626;
 }
 
-.loading-container {
+.home-button {
+  background-color: #2563eb;
+  margin-top: 1rem;
+}
+
+.home-button:hover {
+  background-color: #1d4ed8;
+}
+
+.loading-container, .error-container p {
   font-size: 1.25rem;
   color: #4b5563;
 }
