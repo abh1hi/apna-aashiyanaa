@@ -1,172 +1,129 @@
 <template>
-  <div class="profile-page min-h-screen bg-white">
-    <!-- Page Header -->
-    <div class="py-12 bg-gray-50">
-      <div class="max-w-7xl mx-auto px-4 text-center">
-        <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Profile</h1>
-        <p class="text-gray-600 text-lg">Manage your account details</p>
-      </div>
-    </div>
-
-    <!-- Main Content -->
-    <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-      <!-- Loading State -->
-      <div v-if="loading && !user" class="text-center py-20">
-        <div class="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-        <p class="mt-4 text-gray-600">Loading profile...</p>
-      </div>
-
-      <!-- Error State -->
-      <div v-else-if="error" class="text-center py-20 bg-red-50 p-8 rounded-lg">
-        <div class="w-24 h-24 bg-red-100 text-red-600 mx-auto rounded-full flex items-center justify-center mb-6">
-            <i class="fas fa-exclamation-triangle text-4xl"></i>
+  <div class="profile-page">
+    <div v-if="user" class="profile-container">
+      <h1 class="profile-title">Your Profile</h1>
+      <div class="profile-details">
+        <div class="detail-item">
+          <span class="detail-label">Name:</span>
+          <span class="detail-value">{{ user.name }}</span>
         </div>
-        <h3 class="text-2xl font-semibold text-gray-900 mb-2">Failed to load profile</h3>
-        <p class="text-gray-600 mb-6 max-w-md mx-auto">{{ error }}</p>
-        <button @click="fetchUser" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">
-            Retry
-        </button>
+        <div class="detail-item">
+          <span class="detail-label">Mobile:</span>
+          <span class="detail-value">{{ user.mobile }}</span>
+        </div>
       </div>
-      
-      <!-- User Information -->
-      <div v-else-if="user" class="bg-white border border-gray-200 rounded-lg shadow-sm p-6 md:p-8">
-        <form @submit.prevent="handleSave">
-            <div class="flex flex-col md:flex-row items-center md:items-start md:space-x-8">
-                <div class="relative mb-6 md:mb-0">
-                    <img :src="userAvatar" alt="User avatar" class="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg">
-                </div>
-
-                <div class="flex-grow text-center md:text-left">
-                    <h2 v-if="!isEditMode" class="text-3xl font-bold text-gray-900 h-[52px]">{{ user.name }}</h2>
-                    <input v-else type="text" v-model="editableUser.name" required class="text-3xl font-bold text-gray-900 bg-gray-100 rounded-md p-2 w-full">
-                    
-                    <p class="text-blue-600 font-medium text-lg mt-1">{{ user.role }}</p>
-                    <p class="text-gray-500 text-sm mt-4">Joined on {{ formattedDate(user.createdAt) }}</p>
-                </div>
-
-                <div v-if="!isEditMode" class="mt-6 md:mt-0 ml-auto flex-shrink-0">
-                    <button @click="toggleEditMode" type="button" class="btn-secondary">
-                        <i class="fas fa-pen mr-2"></i>
-                        Edit Profile
-                    </button>
-                </div>
-                <div v-else class="flex mt-6 md:mt-0 ml-auto space-x-2 flex-shrink-0">
-                    <button type="submit" :disabled="loading" class="bg-blue-600 text-white font-semibold py-2 px-5 rounded-md hover:bg-blue-700 disabled:opacity-50">
-                        <span v-if="loading">Saving...</span>
-                        <span v-else>Save</span>
-                    </button>
-                    <button @click="handleCancel" type="button" class="btn-secondary">Cancel</button>
-                </div>
-            </div>
-            
-            <div v-if="updateError" class="mt-4 text-center bg-red-100 text-red-700 p-3 rounded-md">
-                {{ updateError }}
-            </div>
-
-            <div class="border-t border-gray-200 my-8"></div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                <div class="info-item">
-                    <label class="info-label">Email Address</label>
-                    <p class="info-value">{{ user.email }}</p>
-                </div>
-                
-                <div class="info-item">
-                    <label for="mobile" class="info-label">Mobile Number</label>
-                    <p v-if="!isEditMode" class="info-value">{{ user.mobile || 'Not Provided' }}</p>
-                    <input v-else id="mobile" type="tel" pattern="[0-9]{10}" title="Mobile number must be 10 digits" v-model="editableUser.mobile" required class="mt-1 text-base font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-md p-2 w-full">
-                </div>
-
-                <div class="info-item">
-                    <label for="aadhaar" class="info-label">Aadhaar Number</label>
-                    <p v-if="!isEditMode" class="info-value">{{ user.aadhaarNumber || 'Not Provided' }}</p>
-                    <input v-else id="aadhaar" type="text" pattern="[0-9]{12}" title="Aadhaar must be 12 digits" v-model="editableUser.aadhaarNumber" class="mt-1 text-base font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-md p-2 w-full">
-                </div>
-
-                <div class="info-item">
-                    <label class="info-label">User ID</label>
-                    <p class="info-value text-xs text-gray-500">{{ user._id }}</p>
-                </div>
-            </div>
-        </form>
-      </div>
-
-    </main>
+      <button @click="handleSignOut" class="sign-out-button">Sign Out</button>
+    </div>
+    <div v-else class="loading-container">
+      <p>Loading profile...</p>
+    </div>
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useAuthStore } from '@/store/auth'
-import { storeToRefs } from 'pinia'
+<script>
+import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import authService from '../../services/authService';
 
-const authStore = useAuthStore()
-const { user, loading, error } = storeToRefs(authStore)
+export default {
+  name: 'Profile',
+  setup() {
+    const router = useRouter();
+    const user = ref(null);
 
-const isEditMode = ref(false)
-const editableUser = ref(null)
-const updateError = ref(null)
+    onMounted(async () => {
+      try {
+        // Fetch user data from your backend API
+        const userData = await authService.getProfile();
+        user.value = userData;
+      } catch (error) {
+        console.error('Failed to fetch profile:', error);
+        // Redirect to login if not authenticated
+        router.push('/login');
+      }
+    });
 
-const userAvatar = computed(() => {
-    const name = isEditMode.value && editableUser.value ? editableUser.value.name : user.value?.name;
-    return user.value?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${name || 'User'}`
-})
+    const handleSignOut = async () => {
+      try {
+        await authService.logout();
+        router.push('/login');
+      } catch (error) {
+        console.error('Sign out failed:', error);
+      }
+    };
 
-const formattedDate = (dateString) => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'long', day: 'numeric'
-  })
-}
-
-const fetchUser = () => {
-    authStore.fetchUser();
-}
-
-const toggleEditMode = () => {
-  isEditMode.value = true
-  editableUser.value = JSON.parse(JSON.stringify(user.value))
-  updateError.value = null;
-}
-
-const handleCancel = () => {
-  isEditMode.value = false
-  editableUser.value = null
-}
-
-const handleSave = async () => {
-  if (editableUser.value) {
-    try {
-        await authStore.updateUserProfile(editableUser.value)
-        isEditMode.value = false
-        editableUser.value = null
-        fetchUser() 
-    } catch (e) {
-        console.error("Failed to update profile:", e)
-        updateError.value = "Failed to update profile. Please try again."
-    }
-  }
-}
-
-onMounted(() => {
-  if (!user.value) {
-    fetchUser()
-  }
-})
+    return { user, handleSignOut };
+  },
+};
 </script>
 
 <style scoped>
-.btn-secondary {
-    @apply bg-gray-100 text-gray-700 font-semibold py-2 px-5 rounded-md transition duration-300 ease-in-out hover:bg-gray-200;
+.profile-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f3f4f6;
 }
-.info-item {
-  @apply bg-white p-0; /* simplified from gray background to match new design */
+
+.profile-container {
+  width: 100%;
+  max-width: 400px;
+  padding: 2rem;
+  background-color: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-align: center;
 }
-.info-label {
-  @apply block text-xs font-medium text-gray-500 uppercase tracking-wider;
+
+.profile-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  color: #1f2937;
 }
-.info-value {
-  @apply mt-1 text-base font-semibold text-gray-800;
+
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1rem;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.detail-value {
+  color: #1f2937;
+}
+
+.sign-out-button {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background-color: #ef4444;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.sign-out-button:hover {
+  background-color: #dc2626;
+}
+
+.loading-container {
+  font-size: 1.25rem;
+  color: #4b5563;
 }
 </style>

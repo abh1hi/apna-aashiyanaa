@@ -156,6 +156,24 @@ class AuthService {
     }
   }
 
+  async getProfile() {
+    try {
+      const token = this.getToken();
+      if (!token) {
+        throw new Error('User not authenticated');
+      }
+      const response = await api.get('/users/profile', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      throw error;
+    }
+  }
+
   async updateProfile(userData) {
     try {
       const user = this.getCurrentUser();
@@ -174,7 +192,7 @@ class AuthService {
   /**
    * Sign out
    */
-  async signOut() {
+  async logout() {
     try {
       await firebaseSignOut(auth);
       localStorage.removeItem('token');
