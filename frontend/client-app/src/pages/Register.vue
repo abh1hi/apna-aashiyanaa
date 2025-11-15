@@ -86,13 +86,16 @@
           />
         </div>
 
+        <!-- reCAPTCHA Container -->
+        <div id="recaptcha-container" class="mb-4 flex justify-center"></div>
+
         <p v-if="error" class="error-message">{{ error }}</p>
 
         <button 
           type="submit" 
-          :disabled="isLoading"
+          :disabled="isLoading || !recaptchaSolved"
           class="auth-button bg-blue-600 hover:bg-blue-700"
-          :class="{ 'button-loading': isLoading }"
+          :class="{ 'button-loading': isLoading, 'opacity-50 cursor-not-allowed': !recaptchaSolved }"
         >
           <span v-if="!isLoading">Send OTP</span>
           <span v-else>Sending...</span>
@@ -112,8 +115,6 @@
         <router-link to="/login" class="switch-auth-link">Sign in</router-link>
       </p>
 
-      <!-- reCAPTCHA Container -->
-      <div id="recaptcha-container"></div>
     </div>
   </div>
 </template>
@@ -145,52 +146,65 @@ export default {
       showPassword: false,
       error: '',
       isLoading: false,
+      recaptchaSolved: false,
     };
   },
   mounted() {
     try {
-      authService.initRecaptcha('recaptcha-container');
+      authService.initRecaptcha('recaptcha-container', (solved) => {
+        this.recaptchaSolved = solved;
+        if (!solved) {
+          this.error = 'reCAPTCHA response expired. Please solve it again.';
+        }
+      });
     } catch (err) {
       console.error('Failed to initialize reCAPTCHA', err);
       this.error = 'Failed to load authentication service. Please refresh the page.';
     }
   },
   methods: {
-    async handleSendOTP() {
+    validateForm() {
+      this.error = '';
       if (!this.formData.name || this.formData.name.trim() === '') {
         this.error = 'Please enter your full name';
-        return;
+        return false;
       }
       const mobileRegex = /^[0-9]{10}$/;
       if (!this.formData.mobile || !mobileRegex.test(this.formData.mobile)) {
         this.error = 'Please enter a valid 10-digit mobile number';
-        return;
+        return false;
       }
       if (this.formData.password && this.formData.password.length < 6) {
         this.error = 'Password must be at least 6 characters long';
-        return;
+        return false;
       }
       if (this.formData.aadhaar && this.formData.aadhaar.trim() !== '') {
         const aadhaarRegex = /^[0-9]{12}$/;
         if (!aadhaarRegex.test(this.formData.aadhaar)) {
           this.error = 'Aadhaar must be exactly 12 digits';
-          return;
+          return false;
         }
       }
+      return true;
+    },
 
-      this.error = '';
+    async handleSendOTP() {
+      if (!this.validateForm()) return;
+
       this.isLoading = true;
+      this.error = '';
 
       try {
         const result = await authService.loginWithOTP(this.formData.mobile);
-        if (result.success) {
-          this.showOTP = true;
-        } else {
-          this.error = result.message || 'Failed to send OTP. Please check the number and try again.';
-        }
+        this.showOTP = true;
       } catch (err) {
         console.error('Send OTP error:', err);
         this.error = err.message || 'Failed to send OTP. Please try again.';
+        // Reset reCAPTCHA on failure to allow user to try again
+        this.recaptchaSolved = false;
+        authService.initRecaptcha('recaptcha-container', (solved) => {
+          this.recaptchaSolved = solved;
+        });
       } finally {
         this.isLoading = false;
       }
@@ -237,6 +251,8 @@ export default {
 </script>
 
 <style scoped>
+/* Your existing styles are fine */
+
 .auth-page {
   display: flex;
   justify-content: center;
@@ -252,10 +268,6 @@ export default {
   background-color: #ffffff;
   border-radius: 24px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
-}
-
-#recaptcha-container {
-  margin-top: 1rem;
 }
 
 .auth-title {
@@ -336,6 +348,7 @@ export default {
   font-size: 0.875rem;
   margin-top: 0.5rem;
   margin-bottom: 1rem;
+  text-align: center;
 }
 
 .auth-button {
@@ -380,4 +393,5 @@ export default {
 .switch-auth-link:hover {
   color: #1d4ed8;
 }
+
 </style>

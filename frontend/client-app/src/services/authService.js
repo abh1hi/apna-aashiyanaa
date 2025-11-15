@@ -13,25 +13,35 @@ class AuthService {
   constructor() {
     this.recaptchaVerifier = null;
     this.confirmationResult = null;
+    this.recaptchaSolved = false;
   }
 
   /**
    * Initialize reCAPTCHA
    */
-  initRecaptcha(containerId = 'recaptcha-container') {
-    if (!this.recaptchaVerifier) {
-      this.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
-        size: 'invisible',
-        callback: (response) => {
-          console.log('reCAPTCHA solved');
-        },
-        'expired-callback': () => {
-          console.log('reCAPTCHA expired');
-          this.recaptchaVerifier = null;
-        }
-      });
+  initRecaptcha(containerId = 'recaptcha-container', callback) {
+    if (this.recaptchaVerifier) {
+      this.recaptchaVerifier.clear(); // Clear previous instance
     }
-    return this.recaptchaVerifier;
+    
+    this.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
+      size: 'normal', // Use a visible reCAPTCHA
+      callback: (response) => {
+        // reCAPTCHA solved, allow signInWithPhoneNumber.
+        console.log('reCAPTCHA solved');
+        this.recaptchaSolved = true;
+        if (callback) callback(true);
+      },
+      'expired-callback': () => {
+        // Response expired. Ask user to solve reCAPTCHA again.
+        console.log('reCAPTCHA expired');
+        this.recaptchaSolved = false;
+        if (callback) callback(false);
+      }
+    });
+    
+    // Render the reCAPTCHA explicitly
+    return this.recaptchaVerifier.render();
   }
 
   async checkAuthMethod(mobile) {
@@ -84,15 +94,23 @@ class AuthService {
    * Send OTP to phone number
    */
   async loginWithOTP(phoneNumber) {
+    if (!this.recaptchaSolved) {
+      throw new Error('Please solve the reCAPTCHA first.');
+    }
+
     try {
       const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
-      const appVerifier = this.initRecaptcha();
+      // The appVerifier is the rendered reCAPTCHA instance
+      const appVerifier = this.recaptchaVerifier;
 
       this.confirmationResult = await signInWithPhoneNumber(
         auth,
         formattedPhone,
         appVerifier
       );
+      
+      // Reset reCAPTCHA state after use
+      this.recaptchaSolved = false;
 
       return {
         success: true,
@@ -100,11 +118,8 @@ class AuthService {
       };
     } catch (error) {
       console.error('Error sending OTP:', error);
-      // Do not reset the verifier here, Firebase handles it.
-      return {
-        success: false,
-        message: error.message || 'Failed to send OTP'
-      };
+      this.recaptchaSolved = false; // Reset on error
+      throw error; // Rethrow the original error
     }
   }
 
