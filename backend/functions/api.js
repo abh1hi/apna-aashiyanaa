@@ -11,17 +11,28 @@ if (!admin.apps.length) {
 // Create Express app
 const app = express();
 
-// CORS configuration
+// CORS configuration - FIXED to include HTTPS localhost
 const corsOptions = {
   origin: process.env.CORS_ORIGINS?.split(',') || [
     'http://localhost:5173',
-    'http://localhost:5174'
+    'http://localhost:5174',
+    'https://localhost:5173',  // Added HTTPS support
+    'https://localhost:5174'   // Added HTTPS support
   ],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
+// Apply CORS middleware FIRST - before other middleware
 app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
+
+// Body parsing middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -32,7 +43,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Import routes (when you add them)
+// Import routes
 const authRoutes = require('./routes/authRoutes');
 // const propertyRoutes = require('./routes/propertyRoutes');
 app.use('/auth', authRoutes);
@@ -48,6 +59,7 @@ app.use((err, req, res, next) => {
 });
 
 // Export Express app as Cloud Function
+// FIXED: Changed region from asia-south1 to us-central1 to match deployment
 exports.api = functions
-  .region('asia-south1')
+  .region('us-central1')  // Changed to match your deployed endpoint
   .https.onRequest(app);
