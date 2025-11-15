@@ -49,5 +49,4 @@ app.use((err, req, res, next) => {
 
 // Export Express app as Cloud Function
 exports.api = functions
-  .region('asia-south1')
   .https.onRequest(app);
