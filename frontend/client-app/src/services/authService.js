@@ -13,27 +13,35 @@ class AuthService {
   constructor() {
     this.recaptchaVerifier = null;
     this.confirmationResult = null;
+    this.recaptchaSolved = false;
   }
 
   /**
    * Initialize reCAPTCHA
    */
-  initRecaptcha(containerId = 'recaptcha-container') {
-    if (!this.recaptchaVerifier) {
-      // Corrected argument order: containerId, parameters, auth
-
-      this.recaptchaVerifier = new RecaptchaVerifier(containerId, {
-        size: 'invisible',
-        callback: (response) => {
-          console.log('reCAPTCHA solved');
-        },
-        'expired-callback': () => {
-          console.log('reCAPTCHA expired');
-          this.recaptchaVerifier = null;
-        }
-      }, auth);
+  initRecaptcha(containerId = 'recaptcha-container', callback) {
+    if (this.recaptchaVerifier) {
+      this.recaptchaVerifier.clear(); // Clear previous instance
     }
-    return this.recaptchaVerifier;
+    
+    this.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
+      size: 'normal', // Use a visible reCAPTCHA
+      callback: (response) => {
+        // reCAPTCHA solved, allow signInWithPhoneNumber.
+        console.log('reCAPTCHA solved');
+        this.recaptchaSolved = true;
+        if (callback) callback(true);
+      },
+      'expired-callback': () => {
+        // Response expired. Ask user to solve reCAPTCHA again.
+        console.log('reCAPTCHA expired');
+        this.recaptchaSolved = false;
+        if (callback) callback(false);
+      }
+    });
+    
+    // Render the reCAPTCHA explicitly
+    return this.recaptchaVerifier.render();
   }
 
   async checkAuthMethod(mobile) {
@@ -58,11 +66,24 @@ class AuthService {
     }
   }
 
-  async register(userData) {
+  async register(userData, otp) {
     try {
-      // Make API call to backend to register user
-      const response = await api.post('/auth/register', userData);
-      return { success: true, userId: response.data.userId };
+      if (!this.confirmationResult) {
+        throw new Error('Please send an OTP first.');
+      }
+
+      const result = await this.confirmationResult.confirm(otp);
+      const user = result.user;
+      const idToken = await user.getIdToken();
+
+      const response = await api.post('/auth/register', { ...userData, idToken });
+
+      if (response.data.token && response.data.user) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+
+      return { success: true, ...response.data };
     } catch (error) {
       console.error('Error during registration:', error);
       throw error;
@@ -73,19 +94,23 @@ class AuthService {
    * Send OTP to phone number
    */
   async loginWithOTP(phoneNumber) {
+    if (!this.recaptchaSolved) {
+      throw new Error('Please solve the reCAPTCHA first.');
+    }
+
     try {
-      // Ensure phone number has country code
       const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+      // The appVerifier is the rendered reCAPTCHA instance
+      const appVerifier = this.recaptchaVerifier;
 
-      // Initialize reCAPTCHA if not already done
-      const appVerifier = this.initRecaptcha();
-
-      // Send OTP
       this.confirmationResult = await signInWithPhoneNumber(
         auth,
         formattedPhone,
         appVerifier
       );
+      
+      // Reset reCAPTCHA state after use
+      this.recaptchaSolved = false;
 
       return {
         success: true,
@@ -93,35 +118,27 @@ class AuthService {
       };
     } catch (error) {
       console.error('Error sending OTP:', error);
-      // Reset reCAPTCHA on error
-      this.recaptchaVerifier = null;
-      return {
-        success: false,
-        message: error.message || 'Failed to send OTP'
-      };
+      this.recaptchaSolved = false; // Reset on error
+      throw error; // Rethrow the original error
     }
   }
 
   /**
-   * Verify OTP and log in or register the user
+   * Verify OTP and log in the user
    */
-  async verifyOTP(userId, otp) {
+  async verifyOTP(otp) {
     try {
       if (!this.confirmationResult) {
         throw new Error('No OTP request found. Please request OTP first.');
       }
 
-      // Verify OTP with Firebase
       const result = await this.confirmationResult.confirm(otp);
       const user = result.user;
-
-      // Get Firebase ID token
       const idToken = await user.getIdToken();
 
-      // Send ID token to backend to register/login
+      // This endpoint handles both login and registration, but here it's used for login
       const response = await api.post('/auth/phone', { idToken });
 
-      // Store user data and token from our backend
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
 

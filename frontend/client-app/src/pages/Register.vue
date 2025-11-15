@@ -9,7 +9,7 @@
       </div>
 
       <!-- Registration Form -->
-      <form v-if="!showOTP" class="auth-form" @submit.prevent="handleRegister">
+      <form v-if="!showOTP" class="auth-form" @submit.prevent="handleSendOTP">
         <div class="form-group">
           <label for="name" class="sr-only">Full Name</label>
           <input
@@ -86,13 +86,16 @@
           />
         </div>
 
+        <!-- reCAPTCHA Container -->
+        <div id="recaptcha-container" class="mb-4 flex justify-center"></div>
+
         <p v-if="error" class="error-message">{{ error }}</p>
 
         <button 
           type="submit" 
-          :disabled="isLoading"
+          :disabled="isLoading || !recaptchaSolved"
           class="auth-button bg-blue-600 hover:bg-blue-700"
-          :class="{ 'button-loading': isLoading }"
+          :class="{ 'button-loading': isLoading, 'opacity-50 cursor-not-allowed': !recaptchaSolved }"
         >
           <span v-if="!isLoading">Send OTP</span>
           <span v-else>Sending...</span>
@@ -103,15 +106,15 @@
       <OTPVerification
         v-else
         :mobile="formData.mobile"
-        :user-id="userId"
-        @verify="handleVerifyOTP"
-        @resend="handleRegister"
+        @verify="handleVerifyOTPAndRegister"
+        @resend="handleSendOTP"
       />
 
       <p class="switch-auth-text">
         Already have an account? 
         <router-link to="/login" class="switch-auth-link">Sign in</router-link>
       </p>
+
     </div>
   </div>
 </template>
@@ -139,42 +142,75 @@ export default {
         aadhaar: '',
         role: 'buyer'
       },
-      userId: '',
       showOTP: false,
       showPassword: false,
       error: '',
       isLoading: false,
+      recaptchaSolved: false,
     };
   },
+  mounted() {
+    try {
+      authService.initRecaptcha('recaptcha-container', (solved) => {
+        this.recaptchaSolved = solved;
+        if (!solved) {
+          this.error = 'reCAPTCHA response expired. Please solve it again.';
+        }
+      });
+    } catch (err) {
+      console.error('Failed to initialize reCAPTCHA', err);
+      this.error = 'Failed to load authentication service. Please refresh the page.';
+    }
+  },
   methods: {
-    async handleRegister() {
-      // Validate inputs
+    validateForm() {
+      this.error = '';
       if (!this.formData.name || this.formData.name.trim() === '') {
         this.error = 'Please enter your full name';
-        return;
+        return false;
       }
-
       const mobileRegex = /^[0-9]{10}$/;
       if (!this.formData.mobile || !mobileRegex.test(this.formData.mobile)) {
         this.error = 'Please enter a valid 10-digit mobile number';
-        return;
+        return false;
       }
-
-      // Validate password if provided
       if (this.formData.password && this.formData.password.length < 6) {
         this.error = 'Password must be at least 6 characters long';
-        return;
+        return false;
       }
-
-      // Validate Aadhaar if provided
       if (this.formData.aadhaar && this.formData.aadhaar.trim() !== '') {
         const aadhaarRegex = /^[0-9]{12}$/;
         if (!aadhaarRegex.test(this.formData.aadhaar)) {
           this.error = 'Aadhaar must be exactly 12 digits';
-          return;
+          return false;
         }
       }
+      return true;
+    },
 
+    async handleSendOTP() {
+      if (!this.validateForm()) return;
+
+      this.isLoading = true;
+      this.error = '';
+
+      try {
+        const result = await authService.loginWithOTP(this.formData.mobile);
+        this.showOTP = true;
+      } catch (err) {
+        console.error('Send OTP error:', err);
+        this.error = err.message || 'Failed to send OTP. Please try again.';
+        // Reset reCAPTCHA on failure to allow user to try again
+        this.recaptchaSolved = false;
+        authService.initRecaptcha('recaptcha-container', (solved) => {
+          this.recaptchaSolved = solved;
+        });
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    async handleVerifyOTPAndRegister(otp) {
       this.error = '';
       this.isLoading = true;
 
@@ -182,40 +218,28 @@ export default {
         const userData = {
           name: this.formData.name.trim(),
           mobile: this.formData.mobile.trim(),
-          role: this.formData.role
+          role: this.formData.role,
         };
 
-        // Include password if provided
         if (this.formData.password && this.formData.password.trim() !== '') {
           userData.password = this.formData.password;
         }
-
-        // Include aadhaar if provided
         if (this.formData.aadhaar && this.formData.aadhaar.trim() !== '') {
           userData.aadhaar = this.formData.aadhaar.trim();
         }
 
-        await authService.register(userData);
-        this.router.push('/');
+        const response = await authService.register(userData, otp);
+        if (response.success) {
+          this.router.push('/');
+        } else {
+          this.error = response.message || 'Registration failed.';
+        }
       } catch (err) {
-        console.error('Registration error:', err);
-        this.error = err.message || 'Failed to register. Please try again.';
+        console.error('Registration error after OTP:', err);
+        this.error = err.response?.data?.message || err.message || 'Invalid OTP or registration failed.';
+        this.showOTP = false; // Go back to form on failure
       } finally {
         this.isLoading = false;
-      }
-    },
-
-    async handleVerifyOTP(otp) {
-      this.error = '';
-
-      try {
-        const response = await authService.verifyOTP(this.userId, otp);
-        
-        // Redirect to home page after successful registration
-        this.router.push('/');
-      } catch (err) {
-        console.error('OTP verification error:', err);
-        throw new Error(err.message || 'Invalid OTP. Please try again.');
       }
     },
 
@@ -227,6 +251,8 @@ export default {
 </script>
 
 <style scoped>
+/* Your existing styles are fine */
+
 .auth-page {
   display: flex;
   justify-content: center;
@@ -322,6 +348,7 @@ export default {
   font-size: 0.875rem;
   margin-top: 0.5rem;
   margin-bottom: 1rem;
+  text-align: center;
 }
 
 .auth-button {
@@ -366,4 +393,5 @@ export default {
 .switch-auth-link:hover {
   color: #1d4ed8;
 }
+
 </style>

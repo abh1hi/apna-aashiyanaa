@@ -1,6 +1,6 @@
 <template>
 
-
+<div>
     <!-- Main Content -->
     <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
 
