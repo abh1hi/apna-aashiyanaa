@@ -4,12 +4,12 @@
     <!-- Desktop Header -->
     <AppHeader class="hidden md:block"/>
     <!-- Mobile Header -->
-    <MobileHeader class="md:hidden" />
+    <MobileHeader class="md:hidden" ref="mobileHeaderRef" />
 
     <!-- Mobile Off-canvas Sidebar -->
     <MobileSidebar />
     
-    <main class="flex-grow pt-16 md:pt-0 pb-20 md:pb-0">
+    <main class="flex-grow md:pt-0 pb-20 md:pb-0" :style="{ paddingTop: mobileHeaderHeight }">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
           <component :is="Component" />
@@ -25,11 +25,31 @@
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import AppHeader from '@/components/AppHeader.vue';
 import MobileHeader from '@/components/MobileHeader.vue';
 import MobileSidebar from '@/components/MobileSidebar.vue';
 import AppFooter from '@/components/AppFooter.vue';
 import BottomNavBar from '@/components/BottomNavBar.vue';
+
+const mobileHeaderRef = ref(null);
+const mobileHeaderHeight = ref('0px');
+
+const calculateHeaderHeight = () => {
+  if (mobileHeaderRef.value) {
+    const height = mobileHeaderRef.value.$el.offsetHeight;
+    mobileHeaderHeight.value = `${height}px`;
+  }
+};
+
+onMounted(() => {
+  calculateHeaderHeight();
+  window.addEventListener('resize', calculateHeaderHeight);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', calculateHeaderHeight);
+});
 </script>
 
 <style>

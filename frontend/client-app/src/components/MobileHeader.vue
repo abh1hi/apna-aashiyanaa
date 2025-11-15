@@ -1,5 +1,5 @@
 <template>
-  <header class="fixed top-0 left-0 right-0 z-30 bg-surface/80 backdrop-blur-sm md:hidden" style="padding-top: env(safe-area-inset-top);">
+  <header class="fixed top-0 left-0 right-0 z-30 bg-surface/80 backdrop-blur-sm md:hidden shadow-md" style="padding-top: env(safe-area-inset-top); padding-bottom: 0.5rem;">
     <div class="flex items-center justify-between h-16 px-4">
       <!-- Back Button -->
       <button v-if="!isHomePage" @click="$router.back()" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface">
