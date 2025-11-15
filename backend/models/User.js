@@ -1,18 +1,21 @@
 const {db, docWithId, docsWithIds} = require('../config/firestore');
-const bcrypt = require('bcrypt');
 
+/**
+ * User Model
+ * 
+ * This class encapsulates all database interactions for the 'users' collection.
+ * It now exclusively supports a passwordless, Firebase UID-based system.
+ * All methods related to email or password have been removed.
+ */
 class User {
   /**
-   * Create a new user
+   * Creates a new user document in the database.
+   * @param {object} userData - The data for the new user.
+   * Must include firebaseUid, phone, and name.
+   * @returns {Promise<object>} The newly created user object, including its Firestore ID.
    */
   static async create(userData) {
     try {
-      // Hash password if provided
-      if (userData.password) {
-        const salt = await bcrypt.genSalt(10);
-        userData.password = await bcrypt.hash(userData.password, salt);
-      }
-
       const docRef = await this.collection.add({
         ...userData,
         createdAt: new Date(),
@@ -30,7 +33,9 @@ class User {
   }
 
   /**
-   * Find user by phone number
+   * Finds a user by their phone number.
+   * @param {string} phone - The user's 10-digit phone number.
+   * @returns {Promise<object|null>} The user object or null if not found.
    */
   static async findByPhone(phone) {
     try {
@@ -48,38 +53,10 @@ class User {
   }
 
   /**
-   * Find user by email
-   */
-  static async findByEmail(email) {
-    try {
-      const snapshot = await this.collection
-          .where('email', '==', email)
-          .limit(1)
-          .get();
-
-      if (snapshot.empty) return null;
-      return docWithId(snapshot.docs[0]);
-    } catch (error) {
-      console.error('Error finding user by email:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Find user by ID
-   */
-  static async findById(userId) {
-    try {
-      const doc = await this.collection.doc(userId).get();
-      return docWithId(doc);
-    } catch (error) {
-      console.error('Error finding user by ID:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Find user by Firebase UID (for phone auth)
+   * Finds a user by their unique Firebase UID.
+   * This is the primary method for looking up a user in the new auth system.
+   * @param {string} firebaseUid - The user's Firebase Unique ID.
+   * @returns {Promise<object|null>} The user object or null if not found.
    */
   static async findByFirebaseUid(firebaseUid) {
     try {
@@ -97,13 +74,28 @@ class User {
   }
 
   /**
-   * Update user
+   * Finds a user by their Firestore document ID.
+   * @param {string} userId - The Firestore document ID.
+   * @returns {Promise<object>} The user object.
+   */
+  static async findById(userId) {
+    try {
+      const doc = await this.collection.doc(userId).get();
+      return docWithId(doc);
+    } catch (error) {
+      console.error('Error finding user by ID:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Updates a user's profile data.
+   * @param {string} userId - The Firestore document ID of the user to update.
+   * @param {object} updateData - An object containing the fields to update.
+   * @returns {Promise<object>} The updated user object.
    */
   static async update(userId, updateData) {
     try {
-      // Remove password from updateData if present (use separate method)
-      delete updateData.password;
-
       await this.collection.doc(userId).update({
         ...updateData,
         updatedAt: new Date(),
@@ -117,39 +109,9 @@ class User {
   }
 
   /**
-   * Update user password
-   */
-  static async updatePassword(userId, newPassword) {
-    try {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-      await this.collection.doc(userId).update({
-        password: hashedPassword,
-        updatedAt: new Date(),
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Error updating password:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Verify password
-   */
-  static async verifyPassword(plainPassword, hashedPassword) {
-    try {
-      return await bcrypt.compare(plainPassword, hashedPassword);
-    } catch (error) {
-      console.error('Error verifying password:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Delete user (soft delete)
+   * Performs a soft delete on a user by setting them as inactive.
+   * @param {string} userId - The ID of the user to delete.
+   * @returns {Promise<boolean>} True if the operation was successful.
    */
   static async delete(userId) {
     try {
@@ -165,7 +127,9 @@ class User {
   }
 
   /**
-   * Hard delete user (permanently remove)
+   * Permanently deletes a user document from the database.
+   * @param {string} userId - The ID of the user to delete permanently.
+   * @returns {Promise<boolean>} True if the operation was successful.
    */
   static async hardDelete(userId) {
     try {
@@ -178,7 +142,12 @@ class User {
   }
 
   /**
-   * Get all users (paginated)
+   * Retrieves all active users, with options for pagination and filtering.
+   * @param {object} [options] - Optional parameters for the query.
+   * @param {number} [options.limit=50] - The maximum number of users to return.
+   * @param {object} [options.startAfter=null] - A Firestore document snapshot to start after for pagination.
+   * @param {string} [options.role=null] - An optional user role to filter by.
+   * @returns {Promise<Array<object>>} An array of user objects.
    */
   static async findAll(options = {}) {
     try {
@@ -207,6 +176,7 @@ class User {
   }
 }
 
+// Statically assign the collection to the class.
 User.collection = db.collection('users');
 
 module.exports = User;

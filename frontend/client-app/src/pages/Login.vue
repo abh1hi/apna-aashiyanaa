@@ -1,3 +1,14 @@
+<!--
+  This is the main Login component for the application.
+  It orchestrates the entire phone-based authentication flow:
+  1. Renders and manages the Google reCAPTCHA widget.
+  2. Captures the user's 10-digit mobile number.
+  3. Calls the authService to send an OTP to the user's phone.
+  4. Switches the view to an OTP verification component.
+  5. Calls the authService to verify the entered OTP, which in turn authenticates
+     with the backend and stores the user profile.
+  6. On success, redirects the user to their intended page or the homepage.
+-->
 <template>
   <div class="auth-page bg-gray-50">
     <div class="auth-container">
@@ -34,18 +45,17 @@
           type="submit"
           :disabled="isLoading || !recaptchaSolved"
           class="auth-button bg-blue-600 hover:bg-blue-700"
-          :class="{ 'button-loading': isLoading, 'opacity-50 cursor-not-allowed': !recaptchaSolved }"
+          :class="{ 'opacity-50 cursor-not-allowed': !recaptchaSolved }"
         >
-          <span v-if="!isLoading">Send OTP</span>
-          <span v-else>Sending...</span>
+          <span v-if="isLoading">Sending...</span>
+          <span v-else>Send OTP</span>
         </button>
       </form>
 
-      <!-- OTP Verification -->
+      <!-- OTP Verification Component -->
       <OTPVerification
         v-else
         :mobile="mobile"
-        identifier="login-otp-verification"
         @verify="handleVerifyOTPAndLogin"
         @resend="handleSendOTP"
       />
@@ -59,106 +69,105 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import authService from '../services/authService';
 import OTPVerification from '../components/OTPVerification.vue';
-import { useRouter, useRoute } from 'vue-router';
 
-export default {
-  name: 'Login',
-  components: {
-    OTPVerification
-  },
-  setup() {
-    const router = useRouter();
-    const route = useRoute();
-    return { router, route };
-  },
-  data() {
-    return {
-      mobile: '',
-      showOTP: false,
-      error: '',
-      isLoading: false,
-      recaptchaSolved: false,
-    };
-  },
-  mounted() {
-    try {
-      authService.initRecaptcha('recaptcha-container', (solved) => {
-        this.recaptchaSolved = solved;
-        if (!solved) {
-          this.error = 'reCAPTCHA response expired. Please solve it again.';
-        }
-      });
-    } catch (err) {
-      console.error('Failed to initialize reCAPTCHA', err);
-      this.error = 'Failed to load authentication service. Please refresh the page.';
-    }
-  },
-  methods: {
-    validateMobile() {
-      this.error = '';
-      const mobileRegex = /^[0-9]{10}$/;
-      if (!this.mobile || !mobileRegex.test(this.mobile)) {
-        this.error = 'Please enter a valid 10-digit mobile number';
-        return false;
+const router = useRouter();
+const route = useRoute();
+
+const mobile = ref('');
+const showOTP = ref(false);
+const error = ref('');
+const isLoading = ref(false);
+const recaptchaSolved = ref(false);
+
+// Initialize reCAPTCHA when the component mounts
+onMounted(() => {
+  try {
+    authService.initRecaptcha('recaptcha-container', (solved) => {
+      recaptchaSolved.value = solved;
+      if (!solved) {
+        error.value = 'reCAPTCHA response expired. Please solve it again.';
       }
-      return true;
-    },
+    });
+  } catch (err) {
+    console.error('Failed to initialize reCAPTCHA', err);
+    error.value = 'Failed to load authentication service. Please refresh the page.';
+  }
+});
 
-    async handleSendOTP() {
-      if (!this.validateMobile()) return;
-      if (!this.recaptchaSolved) {
-        this.error = 'Please solve the reCAPTCHA before proceeding.';
-        return;
-      }
-
-      this.isLoading = true;
-      this.error = '';
-
-      try {
-        await authService.loginWithOTP(this.mobile);
-        this.showOTP = true;
-      } catch (err) {
-        console.error('Send OTP error:', err);
-        this.error = err.message || 'Failed to send OTP. Please try again.';
-        // Reset reCAPTCHA on failure to allow user to try again
-        this.recaptchaSolved = false;
-        authService.initRecaptcha('recaptcha-container', (solved) => {
-          this.recaptchaSolved = solved;
-        });
-      } finally {
-        this.isLoading = false;
-      }
-    },
-
-    async handleVerifyOTPAndLogin(otp) {
-      this.error = '';
-      this.isLoading = true;
-
-      try {
-        const response = await authService.verifyOTP(otp);
-        if (response.success) {
-          const redirect = this.route.query.redirect || '/';
-          this.router.push(redirect);
-        } else {
-          this.error = response.message || 'Login failed.';
-          this.showOTP = false; // Go back to form on failure
-        }
-      } catch (err) {
-        console.error('Login error after OTP:', err);
-        this.error = err.response?.data?.message || err.message || 'Invalid OTP or login failed.';
-        this.showOTP = false; // Go back to form on failure
-      } finally {
-        this.isLoading = false;
-      }
-    },
-  },
+const validateMobile = () => {
+  error.value = '';
+  const mobileRegex = /^[0-9]{10}$/;
+  if (!mobile.value || !mobileRegex.test(mobile.value)) {
+    error.value = 'Please enter a valid 10-digit mobile number';
+    return false;
+  }
+  return true;
 };
+
+// Step 1: Send OTP to the user's phone
+const handleSendOTP = async () => {
+  if (!validateMobile()) return;
+  if (!recaptchaSolved.value) {
+    error.value = 'Please solve the reCAPTCHA before proceeding.';
+    return;
+  }
+
+  isLoading.value = true;
+  error.value = '';
+
+  try {
+    // Use the new, correct method from authService
+    await authService.sendOTP(mobile.value);
+    showOTP.value = true; // Switch to the OTP entry view
+  } catch (err) {
+    console.error('Send OTP error:', err);
+    error.value = err.message || 'Failed to send OTP. Please try again.';
+    // Reset reCAPTCHA on failure to allow user to try again
+    recaptchaSolved.value = false;
+    authService.initRecaptcha('recaptcha-container', (solved) => {
+      recaptchaSolved.value = solved;
+    });
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Step 2: Verify OTP and log the user in
+const handleVerifyOTPAndLogin = async (otp) => {
+  error.value = '';
+  isLoading.value = true;
+
+  try {
+    // Use the new, unified method that handles Firebase confirmation and backend login
+    const response = await authService.verifyOTPAndRegister(otp, {}); // Pass empty object for login
+    
+    if (response.success) {
+      // On success, redirect to the originally requested page or the user profile
+      const redirectPath = route.query.redirect || { name: 'UserProfile' };
+      router.push(redirectPath);
+    } else {
+      // This case is less likely with the new flow but handled for safety
+      error.value = response.message || 'Login failed.';
+      showOTP.value = false; // Go back to mobile entry form
+    }
+  } catch (err) {
+    console.error('Login error after OTP:', err);
+    error.value = err.message || 'Invalid OTP or login failed.';
+    showOTP.value = false; // Go back to mobile entry form on failure
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 </script>
 
 <style scoped>
+/* Styles are scoped to this component */
 .auth-page {
   display: flex;
   justify-content: center;
@@ -242,10 +251,6 @@ export default {
 .auth-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.button-loading {
-  opacity: 0.7;
 }
 
 .switch-auth-text {
