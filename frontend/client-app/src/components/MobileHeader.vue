@@ -20,7 +20,7 @@
          <router-link v-if="authStore.isAuthenticated" to="/user/profile" class="w-9 h-9 rounded-full bg-secondary-container flex items-center justify-center overflow-hidden">
              <img :src="authStore.user?.avatar || 'https://via.placeholder.com/150'" class="w-full h-full object-cover">
          </router-link>
-         <router-link v-else to="/auth/login" class="w-9 h-9 rounded-full bg-primary-container flex items-center justify-center text-primary">
+         <router-link v-else to="/login" class="w-9 h-9 rounded-full bg-primary-container flex items-center justify-center text-primary">
             <i class="fas fa-user"></i>
          </router-link>
       </div>
