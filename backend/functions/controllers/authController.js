@@ -7,7 +7,8 @@ const asyncHandler = require('express-async-handler');
 // @route   POST /api/auth/register
 // @access  Public
 const registerOrLoginWithPhone = asyncHandler(async (req, res) => {
-  const {idToken, name, aadhaar, email, phone} = req.body;
+  const {idToken, name, aadhaar, email} = req.body;
+  const phone = req.body.phone || req.body.mobile;
 
   // Case 1: Firebase Phone Auth Flow (with ID token)
   if (idToken) {

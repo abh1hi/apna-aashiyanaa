@@ -20,8 +20,6 @@ class AuthService {
    */
   initRecaptcha(containerId = 'recaptcha-container') {
     if (!this.recaptchaVerifier) {
-      // Corrected argument order: containerId, parameters, auth
-
       this.recaptchaVerifier = new RecaptchaVerifier(containerId, {
         size: 'invisible',
         callback: (response) => {
@@ -58,11 +56,24 @@ class AuthService {
     }
   }
 
-  async register(userData) {
+  async register(userData, otp) {
     try {
-      // Make API call to backend to register user
-      const response = await api.post('/auth/register', userData);
-      return { success: true, userId: response.data.userId };
+      if (!this.confirmationResult) {
+        throw new Error('Please send an OTP first.');
+      }
+
+      const result = await this.confirmationResult.confirm(otp);
+      const user = result.user;
+      const idToken = await user.getIdToken();
+
+      const response = await api.post('/auth/register', { ...userData, idToken });
+
+      if (response.data.token && response.data.user) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+
+      return { success: true, ...response.data };
     } catch (error) {
       console.error('Error during registration:', error);
       throw error;
@@ -74,13 +85,9 @@ class AuthService {
    */
   async loginWithOTP(phoneNumber) {
     try {
-      // Ensure phone number has country code
       const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
-
-      // Initialize reCAPTCHA if not already done
       const appVerifier = this.initRecaptcha();
 
-      // Send OTP
       this.confirmationResult = await signInWithPhoneNumber(
         auth,
         formattedPhone,
@@ -93,7 +100,6 @@ class AuthService {
       };
     } catch (error) {
       console.error('Error sending OTP:', error);
-      // Reset reCAPTCHA on error
       this.recaptchaVerifier = null;
       return {
         success: false,
@@ -103,25 +109,21 @@ class AuthService {
   }
 
   /**
-   * Verify OTP and log in or register the user
+   * Verify OTP and log in the user
    */
-  async verifyOTP(userId, otp) {
+  async verifyOTP(otp) {
     try {
       if (!this.confirmationResult) {
         throw new Error('No OTP request found. Please request OTP first.');
       }
 
-      // Verify OTP with Firebase
       const result = await this.confirmationResult.confirm(otp);
       const user = result.user;
-
-      // Get Firebase ID token
       const idToken = await user.getIdToken();
 
-      // Send ID token to backend to register/login
+      // This endpoint handles both login and registration, but here it's used for login
       const response = await api.post('/auth/phone', { idToken });
 
-      // Store user data and token from our backend
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
 
