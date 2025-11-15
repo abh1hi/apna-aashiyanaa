@@ -57,4 +57,23 @@ export const propertyApi = {
   deleteProperty: (id) => api.delete(`/properties/${id}`),
 };
 
+// Property data transformation
+export const transformPropertyData = (backendData) => {
+  return {
+    _id: backendData._id,
+    name: backendData.name,
+    description: backendData.description,
+    price: backendData.variants?.[0]?.price || backendData.price,
+    images: backendData.images || [],
+    location: backendData.location,
+    type: backendData.categories?.[0]?.name || 'For Sale',
+    bedrooms: backendData.specifications?.bedrooms,
+    bathrooms: backendData.specifications?.bathrooms,
+    area: backendData.specifications?.area,
+    agent: backendData.user,
+    createdAt: backendData.createdAt,
+    updatedAt: backendData.updatedAt
+  }
+}
+
 export default api;
