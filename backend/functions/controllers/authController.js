@@ -7,84 +7,159 @@ const asyncHandler = require('express-async-handler');
 // @route   POST /api/auth/register
 // @access  Public
 const registerOrLoginWithPhone = asyncHandler(async (req, res) => {
-  const {idToken, name, aadhaar, email} = req.body;
+  const {idToken, name, aadhaar, email, phone} = req.body;
 
-  if (!idToken) {
+  // Case 1: Firebase Phone Auth Flow (with ID token)
+  if (idToken) {
+    try {
+      // Verify the Firebase ID token
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const {phone_number: phoneNumber, uid: firebaseUid} = decodedToken;
+
+      // Check if user already exists
+      let user = await User.findByFirebaseUid(firebaseUid);
+
+      if (user) {
+        // User exists, return existing user info
+        return res.status(200).json({
+          success: true,
+          message: 'Login successful',
+          user: {
+            id: user.id,
+            firebaseUid: user.firebaseUid,
+            phone: user.phone || phoneNumber,
+            name: user.name,
+            email: user.email,
+            aadhaar: user.aadhaar,
+            role: user.role,
+            isActive: user.isActive,
+            createdAt: user.createdAt
+          },
+          isNewUser: false
+        });
+      } else {
+        // User does not exist, create a new user
+        const userData = {
+          firebaseUid,
+          phone: phoneNumber,
+          name: name || null,
+          email: email || null,
+          aadhaar: aadhaar || null,
+          role: 'user',
+        };
+
+        const createdUser = await User.create(userData);
+
+        return res.status(201).json({
+          success: true,
+          message: 'Registration successful',
+          user: {
+            id: createdUser.id,
+            firebaseUid: createdUser.firebaseUid,
+            phone: createdUser.phone,
+            name: createdUser.name,
+            email: createdUser.email,
+            aadhaar: createdUser.aadhaar,
+            role: createdUser.role,
+            isActive: createdUser.isActive,
+            createdAt: createdUser.createdAt
+          },
+          isNewUser: true
+        });
+      }
+    } catch (error) {
+      console.error('Error during Firebase token verification:', error);
+      
+      if (error.code === 'auth/id-token-expired') {
+        res.status(401);
+        throw new Error('Token expired. Please sign in again.');
+      }
+      
+      if (error.code === 'auth/invalid-id-token') {
+        res.status(401);
+        throw new Error('Invalid token. Please sign in again.');
+      }
+      
+      res.status(500);
+      throw new Error('Token verification failed: ' + error.message);
+    }
+  }
+
+  // Case 2: Direct Phone Registration (without ID token)
+  // This is for legacy support or alternative auth flows
+  if (!phone) {
     res.status(400);
-    throw new Error('ID token is required');
+    throw new Error('Either ID token or phone number is required for registration');
   }
 
   try {
-    // Verify the Firebase ID token
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const {phone_number: phoneNumber, uid: firebaseUid} = decodedToken;
-
-    // Check if user already exists
-    let user = await User.findByFirebaseUid(firebaseUid);
+    // Check if user already exists by phone
+    let user = await User.findByPhone(phone);
 
     if (user) {
-      // User exists, return existing user info
-      return res.status(200).json({
-        success: true,
-        message: 'Login successful',
-        user: {
-          id: user.id,
-          firebaseUid: user.firebaseUid,
-          phone: user.phone || phoneNumber,
-          name: user.name,
-          email: user.email,
-          aadhaar: user.aadhaar,
-          role: user.role,
-          isActive: user.isActive,
-          createdAt: user.createdAt
-        },
-        isNewUser: false
-      });
-    } else {
-      // User does not exist, create a new user
-      const userData = {
-        firebaseUid,
-        phone: phoneNumber,
-        name: name || null,
-        email: email || null,
-        aadhaar: aadhaar || null,
-        role: 'user',
-      };
-
-      const createdUser = await User.create(userData);
-
-      return res.status(201).json({
-        success: true,
-        message: 'Registration successful',
-        user: {
-          id: createdUser.id,
-          firebaseUid: createdUser.firebaseUid,
-          phone: createdUser.phone,
-          name: createdUser.name,
-          email: createdUser.email,
-          aadhaar: createdUser.aadhaar,
-          role: createdUser.role,
-          isActive: createdUser.isActive,
-          createdAt: createdUser.createdAt
-        },
-        isNewUser: true
+      // User exists - this is actually a login attempt
+      // You may want to send OTP here or return an error
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists. Please use login instead.',
+        error: 'USER_EXISTS'
       });
     }
+
+    // Create Firebase user first if not using ID token flow
+    let firebaseUid;
+    try {
+      // Check if Firebase user exists for this phone
+      const userRecord = await admin.auth().getUserByPhoneNumber(phone);
+      firebaseUid = userRecord.uid;
+    } catch (firebaseError) {
+      if (firebaseError.code === 'auth/user-not-found') {
+        // Create new Firebase user
+        const newFirebaseUser = await admin.auth().createUser({
+          phoneNumber: phone,
+        });
+        firebaseUid = newFirebaseUser.uid;
+      } else {
+        throw firebaseError;
+      }
+    }
+
+    // Create user in database
+    const userData = {
+      firebaseUid,
+      phone,
+      name: name || null,
+      email: email || null,
+      aadhaar: aadhaar || null,
+      role: 'user',
+    };
+
+    const createdUser = await User.create(userData);
+
+    // Generate custom token for the new user
+    const customToken = await admin.auth().createCustomToken(firebaseUid);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Registration successful',
+      user: {
+        id: createdUser.id,
+        firebaseUid: createdUser.firebaseUid,
+        phone: createdUser.phone,
+        name: createdUser.name,
+        email: createdUser.email,
+        aadhaar: createdUser.aadhaar,
+        role: createdUser.role,
+        isActive: createdUser.isActive,
+        createdAt: createdUser.createdAt
+      },
+      customToken, // Client can use this to sign in with Firebase
+      isNewUser: true
+    });
   } catch (error) {
-    console.error('Error during registration/login:', error);
-    
-    if (error.code === 'auth/id-token-expired') {
-      res.status(401);
-      throw new Error('Token expired. Please sign in again.');
-    }
-    
-    if (error.code === 'auth/invalid-id-token') {
-      res.status(401);
-      throw new Error('Invalid token. Please sign in again.');
-    }
-    
+    console.error('Error during direct phone registration:', error);
     res.status(500);
-    throw new Error('Registration/Login failed: ' + error.message);
+    throw new Error('Registration failed: ' + error.message);
   }
 });
 
