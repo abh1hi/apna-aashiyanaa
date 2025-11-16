@@ -19,21 +19,18 @@ router.post(
           });
         }
 
-        const {processImages} = require('../utils/imageUpload');
+        const { processImages } = require('../utils/imageUpload');
 
-        const processedImages = await processImages(req.files, {
-          maxSizeInBytes: 2 * 1024 * 1024,
-          quality: 80,
-          format: 'webp',
-        });
+        // Upload to 'properties' path in storage and return public URLs
+        const processedImages = await processImages(req.files, 'properties');
 
-        const imageUrls = processedImages.map((img) => img.data);
+        const imageUrls = processedImages.map((img) => img.url);
 
         res.status(200).json({
           success: true,
           images: imageUrls,
           count: imageUrls.length,
-          message: 'Images uploaded and compressed successfully',
+          message: 'Images uploaded successfully',
         });
       } catch (error) {
         console.error('Error uploading images:', error);

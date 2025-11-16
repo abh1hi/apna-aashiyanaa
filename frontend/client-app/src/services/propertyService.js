@@ -1,7 +1,18 @@
 import axios from 'axios';
 import authService from './authService';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001/test1-50da1/us-central1/api';
+// Determine API URL based on emulator or production
+const getApiUrl = () => {
+  if (import.meta.env.VITE_USE_EMULATOR === 'true' && import.meta.env.VITE_API_URL) {
+    console.log('[propertyService] Using emulator API:', import.meta.env.VITE_API_URL);
+    return import.meta.env.VITE_API_URL;
+  }
+  const fallback = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001/apnaashiyanaa-app/us-central1/api';
+  console.log('[propertyService] Using API:', fallback);
+  return fallback;
+};
+
+const API_URL = getApiUrl();
 
 // Create axios instance with auth header
 const apiClient = axios.create({

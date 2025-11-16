@@ -1,119 +1,84 @@
-let sharp;
-try {
-  sharp = require('sharp');
-} catch (err) {
-  // sharp optional on platforms where native binary isn't available at build time.
-  // We will fall back to uploading the original image if sharp isn't present.
-  console.warn('sharp is not available; image processing will be skipped:', err && err.message);
-  sharp = null;
-}
 const { v4: uuidv4 } = require('uuid');
 const admin = require('firebase-admin');
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
-
 /**
- * Compresses an image file.
- *
- * @param {Buffer} fileBuffer - The buffer of the image file.
- * @returns {Promise<object>} An object containing the compressed image data and its size.
+ * Upload image directly to Firebase Storage without compression.
+ * Uses Firebase Admin SDK's save method for simplicity and reliability.
  */
-const compressImage = async (fileBuffer, originalMime) => {
-  // If sharp isn't available, return original buffer and mime type
-  if (!sharp) {
-    return { data: fileBuffer, size: fileBuffer.length, contentType: originalMime };
-  }
-
-  try {
-    let buffer = await sharp(fileBuffer)
-      .webp({ quality: 80 })
-      .toBuffer();
-
-    if (buffer.length > MAX_FILE_SIZE) {
-      buffer = await sharp(buffer)
-        .resize({ width: 1024, withoutEnlargement: true })
-        .toBuffer();
-    }
-
-    return { data: buffer, size: buffer.length, contentType: 'image/webp' };
-  } catch (error) {
-    console.error('Error compressing image:', error);
-    // If processing fails, fall back to original
-    return { data: fileBuffer, size: fileBuffer.length, contentType: originalMime };
-  }
-};
-
-
 const processAndUploadImage = async (file, path) => {
-  if (!file.mimetype.startsWith('image')) {
+  if (!file.mimetype || !file.mimetype.startsWith('image')) {
     throw new Error('File is not an image.');
   }
 
-  const result = await compressImage(file.buffer, file.mimetype);
+  try {
+    console.log(`[processAndUploadImage] Starting upload for ${file.originalname}`);
+    const bucket = admin.storage().bucket();
+    const fileId = uuidv4();
+    const ext = (file.originalname && file.originalname.split('.').pop()) || 'jpg';
+    const filePath = `${path}/${fileId}.${ext}`;
 
-  // --- STORAGE UPLOAD SECTION ---
-  const bucket = admin.storage().bucket();
-  const fileId = uuidv4();
+    console.log(`[processAndUploadImage] Uploading to: ${filePath} (size=${file.buffer.length}, mime=${file.mimetype})`);
 
-  // Use file extension based on contentType (prefer webp when processed)
-  const ext = result.contentType === 'image/webp' ? 'webp' : (file.originalname && file.originalname.split('.').pop()) || 'bin';
-  const filePath = `${path}/${fileId}.${ext}`;
-  const fileUpload = bucket.file(filePath);
-
-  const stream = fileUpload.createWriteStream({
-    metadata: {
-      contentType: result.contentType || 'application/octet-stream',
-    },
-    resumable: false
-  });
-
-  return new Promise((resolve, reject) => {
-    stream.on('error', (err) => {
-      console.error('Failure during upload', err);
-      reject(new Error('Image upload failed.'));
+    // Upload using save method (simpler and more reliable than createWriteStream)
+    await bucket.file(filePath).save(file.buffer, {
+      metadata: {
+        contentType: file.mimetype,
+      },
     });
 
-    stream.on('finish', async () => {
-      try {
-        await fileUpload.makePublic();
-        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
-        
-        resolve({
-          id: fileId,
-          url: publicUrl,
-          size: result.size,
-          path: filePath,
-          originalname: file.originalname,
-        });
-      } catch (err) {
-        console.error('Could not make file public', err);
-        reject(new Error('Failed to make image public.'));
-      }
-    });
+    console.log(`[processAndUploadImage] ✓ Upload successful: ${filePath}`);
 
-    stream.end(result.data);
-  });
+    // Make file public
+    try {
+      await bucket.file(filePath).makePublic();
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+      console.log(`[processAndUploadImage] ✓ File made public: ${publicUrl}`);
+      
+      return {
+        id: fileId,
+        url: publicUrl,
+        size: file.buffer.length,
+        path: filePath,
+        originalname: file.originalname,
+        public: true,
+      };
+    } catch (publicErr) {
+      console.warn(`[processAndUploadImage] ⚠ Could not make file public: ${publicErr.message}`);
+      // Return gs:// URL if makePublic fails (file still uploaded)
+      const gsPath = `gs://${bucket.name}/${filePath}`;
+      return {
+        id: fileId,
+        url: gsPath,
+        size: file.buffer.length,
+        path: filePath,
+        originalname: file.originalname,
+        public: false,
+      };
+    }
+  } catch (error) {
+    console.error(`[processAndUploadImage] ✗ Error uploading image: ${error.message}`, error.stack);
+    throw error;
+  }
 };
 
 
 /**
  * Processes and uploads multiple images.
  *
- * @param {Array<object>} files - Array of file objects from multer.
- * @param {string} path - The path in Firebase storage (e.g., 'properties', 'avatars').
- * @returns {Promise<Array<object>>} An array of image metadata objects.
+ * @param {Array} files - Array of file objects from multer.
+ * @param {string} path - The path in Firebase storage.
+ * @returns {Promise<Array>} An array of image metadata objects.
  */
 const processImages = async (files, path = 'images') => {
-    if (!files || files.length === 0) {
-        return [];
-    }
+  if (!files || files.length === 0) {
+    return [];
+  }
   const uploadPromises = files.map(file => processAndUploadImage(file, path));
   return Promise.all(uploadPromises);
 };
 
 
 module.exports = {
-  compressImage,
   processImages,
   processAndUploadImage,
 };

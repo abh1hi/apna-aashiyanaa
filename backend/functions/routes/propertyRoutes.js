@@ -19,15 +19,8 @@ router.post(
     '/',
     protect,
     upload.array('images', 10), // 1. Multer middleware for parsing files
-    // 2. Custom middleware for processing and getting URLs (only if files exist)
-    (req, res, next) => {
-        if (req.files && req.files.length > 0) {
-            return processAndAttachUrls('properties')(req, res, next);
-        }
-        // No files to process, continue to validation
-        req.body.images = [];
-        next();
-    },
+    // 2. Custom middleware for processing and getting URLs (always call)
+    processAndAttachUrls('properties'),
     parseFormDataJson,
     propertyValidationRules(),
     validate, 
@@ -38,13 +31,8 @@ router.put(
     '/:id',
     protect,
     upload.array('images', 10),
-    // Only process images if new ones are uploaded
-    (req, res, next) => {
-        if (req.files && req.files.length > 0) {
-            return processAndAttachUrls('properties')(req, res, next);
-        }
-        next();
-    },
+    // Always process images (middleware handles empty files)
+    processAndAttachUrls('properties'),
     propertyController.updateProperty
 );
 

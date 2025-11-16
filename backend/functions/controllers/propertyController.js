@@ -7,7 +7,7 @@ const asyncHandler = require('express-async-handler');
 const createProperty = asyncHandler(async (req, res) => {
   try {
     console.log('createProperty req.body:', req.body);
-    console.log('createProperty req.files:', req.files);
+    console.log('createProperty req.files:', req.files ? `${req.files.length} files` : 'no files');
     
     const { title, description, listingType, propertyType, price, bedrooms, bathrooms, area, amenities, images } = req.body;
 
@@ -42,14 +42,16 @@ const createProperty = asyncHandler(async (req, res) => {
       bathrooms: parseFloat(bathrooms),
       area: parseFloat(area),
       amenities: amenities ? amenities.split(',').map(a => a.trim()) : [],
-      images: images || [], // These are URLs from processAndAttachUrls middleware or empty array
+      images: images && images.length > 0 ? images : [], // These are URLs from middleware or empty array
       ownerId,
       status: 'active',
     };
 
     console.log('propertyData before create:', propertyData);
+    console.log(`Saving property with ${propertyData.images.length} image(s)`);
 
     const property = await Property.create(propertyData);
+    console.log('Property created successfully:', property.id);
 
     res.status(201).json(property);
   } catch (error) {
