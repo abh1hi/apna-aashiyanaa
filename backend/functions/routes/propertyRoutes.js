@@ -7,12 +7,9 @@ const filesUploadMiddleware = require('../middleware/filesUploadMiddleware');
 
 // Public routes
 router.get('/', propertyController.getProperties);
-router.get('/search', propertyController.searchProperties);
 router.get('/:id', propertyController.getPropertyByIdOrSlug);
 
 // Private routes
-router.get('/user/my-properties', protect, propertyController.getUserProperties);
-
 router.post(
     '/',
     protect,

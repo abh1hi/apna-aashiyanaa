@@ -94,10 +94,28 @@ const deleteProperty = asyncHandler(async (req, res) => {
   res.json({ message: 'Property removed' });
 });
 
+// @desc    Search properties
+// @route   GET /api/properties/search
+// @access  Public
+const searchProperties = asyncHandler(async (req, res) => {
+    res.status(501).json({ message: "Not implemented" });
+});
+
+
+// @desc    Get properties for a specific user
+// @route   GET /api/properties/user/my-properties
+// @access  Private
+const getUserProperties = asyncHandler(async (req, res) => {
+    res.status(501).json({ message: "Not implemented" });
+});
+
+
 module.exports = {
   createProperty,
   getProperties,
   getPropertyByIdOrSlug,
   updateProperty,
   deleteProperty,
+  searchProperties,
+  getUserProperties
 };
