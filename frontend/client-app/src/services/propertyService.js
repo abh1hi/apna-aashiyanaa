@@ -36,9 +36,8 @@ apiClient.interceptors.request.use(
  */
 export const createProperty = async (formData) => {
   try {
-    const response = await axios.post(`${API_URL}/properties`, formData, {
+    const response = await apiClient.post('/properties', formData, {
       headers: {
-        'Authorization': `Bearer ${getAuthToken()}`,
         'Content-Type': 'multipart/form-data'
       }
     });
@@ -57,10 +56,10 @@ export const createProperty = async (formData) => {
  */
 export const updateProperty = async (id, formData) => {
   try {
-    const response = await axios.put(`${API_URL}/properties/${id}`, formData, {
-      headers: {
-        'Authorization': `Bearer ${getAuthToken()}`
-      }
+    const response = await apiClient.put(`/properties/${id}`, formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
     });
     return response.data;
   } catch (error) {
@@ -82,12 +81,12 @@ export const uploadPropertyImages = async (propertyId, images) => {
       formData.append('images', image);
     });
     
-    const response = await axios.post(
-      `${API_URL}/properties/${propertyId}/images`,
+    const response = await apiClient.post(
+      `/properties/${propertyId}/images`,
       formData,
       {
         headers: {
-          'Authorization': `Bearer ${getAuthToken()}`
+          'Content-Type': 'multipart/form-data'
         }
       }
     );

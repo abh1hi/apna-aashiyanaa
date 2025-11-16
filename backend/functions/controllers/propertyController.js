@@ -5,24 +5,30 @@ const asyncHandler = require('express-async-handler');
 // @route   POST /api/properties
 // @access  Private
 const createProperty = asyncHandler(async (req, res) => {
-  const { title, description, price, location, bedrooms, bathrooms, area, propertyType, amenities, images } = req.body;
+  const { name, description, listingType, propertyType, price, amenities, images } = req.body;
 
-  // Get owner ID from authenticated user (firebaseUid from User model)
-  const ownerId = req.user.firebaseUid;
+  // Parse stringified fields
+  const location = JSON.parse(req.body.location);
+  const specifications = JSON.parse(req.body.specifications);
 
-  const property = await Property.create({
-    ownerId,
-    title,
+  // Get owner ID from authenticated user
+  const ownerId = req.user._id;
+
+  const propertyData = {
+    name,
     description,
+    listingType,
+    propertyType,
     price,
     location,
-    bedrooms,
-    bathrooms,
-    area,
-    propertyType,
-    amenities,
-    images
-  });
+    ...specifications,
+    amenities: amenities ? amenities.split(',') : [],
+    images, // These are URLs from processAndAttachUrls middleware
+    ownerId,
+    status: 'active',
+  };
+
+  const property = await Property.create(propertyData);
 
   res.status(201).json(property);
 });
