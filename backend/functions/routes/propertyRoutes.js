@@ -4,6 +4,8 @@ const propertyController = require('../controllers/propertyController');
 const {protect} = require('../middleware/authMiddleware');
 const {propertyValidationRules, validate} = require('../middleware/validation');
 
+const {upload, handleMulterError} = require('../middleware/upload');
+
 // Public routes for fetching properties
 router.get('/', propertyController.getProperties);
 router.get('/search', propertyController.searchProperties);
@@ -16,6 +18,8 @@ router.get('/user/my-properties', protect, propertyController.getUserProperties)
 router.post(
     '/',
     protect,
+    upload.array('images', 10),
+    handleMulterError,
     propertyValidationRules(),
     validate,
     propertyController.createProperty,
@@ -25,6 +29,8 @@ router.post(
 router.put(
     '/:id',
     protect,
+    upload.array('images', 10),
+    handleMulterError,
     propertyController.updateProperty,
 );
 
@@ -32,6 +38,8 @@ router.put(
 router.post(
     '/:id/images',
     protect,
+    upload.array('images', 10),
+    handleMulterError,
     propertyController.uploadPropertyImages,
 );
 
