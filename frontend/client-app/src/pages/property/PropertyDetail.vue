@@ -1,10 +1,29 @@
 <template>
   <div class="property-detail-page bg-background min-h-screen">
     
+    <!-- Loading State -->
+    <div v-if="loading" class="flex items-center justify-center min-h-screen">
+      <div class="text-center">
+        <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+        <p class="text-on-surface-variant">Loading property details...</p>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="flex items-center justify-center min-h-screen">
+      <div class="text-center">
+        <i class="fas fa-exclamation-triangle text-4xl text-error mb-4"></i>
+        <p class="text-on-surface-variant">{{ error }}</p>
+        <button @click="$router.back()" class="mt-4 px-4 py-2 bg-primary text-on-primary rounded-lg">Go Back</button>
+      </div>
+    </div>
+
+    <!-- Property Content -->
+    <template v-else-if="property">
     <!-- Image Gallery -->
     <div class="relative">
       <div class="h-72 md:h-96 bg-surface-variant flex items-center justify-center">
-        <img v-if="property && property.images.length" :src="property.images[0]" alt="Primary property image" class="w-full h-full object-cover">
+        <img v-if="property.images && property.images.length > 0" :src="property.images[0]" alt="Primary property image" class="w-full h-full object-cover">
         <div v-else class="text-on-surface-variant">Image not available</div>
       </div>
       <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/60 to-transparent"></div>
@@ -45,10 +64,10 @@
 
             <!-- Key Features -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center mb-8">
-                <div class="feature-box"><i class="fas fa-bed text-2xl mb-2"></i><p>{{ property.details.bedrooms }} Beds</p></div>
-                <div class="feature-box"><i class="fas fa-bath text-2xl mb-2"></i><p>{{ property.details.bathrooms }} Baths</p></div>
-                <div class="feature-box"><i class="fas fa-ruler-combined text-2xl mb-2"></i><p>{{ property.details.area }} sqft</p></div>
-                <div class="feature-box"><i class="fas fa-building text-2xl mb-2"></i><p>{{ property.propertyType }}</p></div>
+                <div class="feature-box"><i class="fas fa-bed text-2xl mb-2"></i><p>{{ property.bedrooms || 0 }} Beds</p></div>
+                <div class="feature-box"><i class="fas fa-bath text-2xl mb-2"></i><p>{{ property.bathrooms || 0 }} Baths</p></div>
+                <div class="feature-box"><i class="fas fa-ruler-combined text-2xl mb-2"></i><p>{{ property.area || 0 }} sqft</p></div>
+                <div class="feature-box"><i class="fas fa-building text-2xl mb-2"></i><p>{{ property.propertyType || 'N/A' }}</p></div>
             </div>
 
             <!-- Description -->
@@ -76,8 +95,8 @@
                 </div>
             </div>
             
-            <!-- Agent Info -->
-            <div class="bg-surface rounded-lg p-5 flex items-center">
+            <!-- Agent Info (Optional - can be removed if not needed) -->
+            <div v-if="property.agent" class="bg-surface rounded-lg p-5 flex items-center">
                 <img :src="property.agent.avatar" alt="Agent" class="w-16 h-16 rounded-full mr-5">
                 <div>
                     <p class="font-bold text-on-surface">{{ property.agent.name }}</p>
@@ -91,39 +110,58 @@
 
         </div>
     </main>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import propertyService from '@/services/propertyService'
 
 const props = defineProps({ id: String })
 const route = useRoute()
 
-// This is dummy data. In a real app, you would fetch this from your API.
 const property = ref(null)
+const loading = ref(true)
+const error = ref(null)
 
-onMounted(() => {
-    // Simulate API call
-    setTimeout(() => {
-        property.value = {
-            _id: props.id,
-            title: 'Luxury Villa with a View',
-            description: 'A stunning villa located in the heart of the city, offering breathtaking views and modern amenities. This property is perfect for those who appreciate a luxurious lifestyle and want to be close to everything the city has to offer. The spacious living areas and private pool make it an ideal home for families or for entertaining guests.',
-            images: ['https://images.unsplash.com/photo-1580587771525-78b9dba3b914?q=80&w=2874&auto=format&fit=crop'],
-            price: 45000000,
-            listingType: 'sale',
-            propertyType: 'Villa',
-            location: { address: '123 Royal Palms, Mumbai, India' },
-            details: { bedrooms: 4, bathrooms: 5, area: 4200 },
-            amenities: ['Swimming Pool', 'Gymnasium', '24/7 Security', 'Clubhouse', 'Garden', 'Private Parking'],
-            agent: {
-                name: 'Priya Sharma',
-                avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Priya%20Sharma'
-            }
-        };
-    }, 500)
+onMounted(async () => {
+    try {
+        loading.value = true
+        const propertyId = props.id || route.params.id
+        
+        if (!propertyId) {
+            error.value = 'Property ID is required'
+            loading.value = false
+            return
+        }
+
+        // Fetch property from API
+        const data = await propertyService.getPropertyById(propertyId)
+        
+        // Ensure images array exists and is properly formatted
+        if (!data.images || !Array.isArray(data.images)) {
+            data.images = []
+        }
+        
+        // Ensure location object exists
+        if (!data.location) {
+            data.location = { address: 'Address not available' }
+        }
+        
+        // Ensure amenities array exists
+        if (!data.amenities || !Array.isArray(data.amenities)) {
+            data.amenities = []
+        }
+        
+        property.value = data
+    } catch (err) {
+        console.error('Error fetching property:', err)
+        error.value = err.message || 'Failed to load property details'
+    } finally {
+        loading.value = false
+    }
 })
 
 const formattedPrice = (price) => {

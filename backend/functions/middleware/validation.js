@@ -7,6 +7,38 @@ const parseFormDataJson = (req, res, next) => {
     if (req.body.location && typeof req.body.location === 'string') {
       req.body.location = JSON.parse(req.body.location);
     }
+    
+    // Handle images array from FormData
+    // FormData can send multiple values with the same key, which might come as:
+    // - An array if express.urlencoded handles it
+    // - A string if it's a single value
+    // - Multiple entries that need to be collected
+    if (req.body.images) {
+      // If images is already an array, keep it
+      if (Array.isArray(req.body.images)) {
+        // Filter out any empty strings
+        req.body.images = req.body.images.filter(img => img && img.trim() !== '');
+      } 
+      // If images is a string, convert to array
+      else if (typeof req.body.images === 'string') {
+        // Check if it's a JSON array string
+        try {
+          const parsed = JSON.parse(req.body.images);
+          if (Array.isArray(parsed)) {
+            req.body.images = parsed.filter(img => img && img.trim() !== '');
+          } else {
+            req.body.images = [req.body.images].filter(img => img && img.trim() !== '');
+          }
+        } catch (e) {
+          // Not JSON, treat as single URL string
+          req.body.images = req.body.images.trim() !== '' ? [req.body.images] : [];
+        }
+      }
+    } else {
+      // If images field doesn't exist, set to empty array
+      req.body.images = [];
+    }
+    
     next();
   } catch (error) {
     next(error);

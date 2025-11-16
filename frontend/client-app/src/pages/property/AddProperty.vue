@@ -286,11 +286,12 @@ const handleSubmit = async () => {
       data.append('amenities', formData.amenities.join(','));
     }
 
-    // Append image URLs
+    // Append image URLs as JSON string (similar to location)
+    // This ensures the backend can properly parse it as an array
     if (imageUrls && imageUrls.length > 0) {
-      imageUrls.forEach(url => {
-        data.append('images', url);
-      });
+      data.append('images', JSON.stringify(imageUrls));
+    } else {
+      data.append('images', JSON.stringify([]));
     }
     
     data.append('ownerId', formData.ownerId);

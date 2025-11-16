@@ -32,7 +32,13 @@ apiClient.interceptors.request.use(
  */
 export const createProperty = async (formData) => {
   try {
-    const response = await apiClient.post('/properties', formData);
+    // For FormData, axios automatically sets Content-Type with boundary
+    // We need to remove the default JSON Content-Type for this request
+    const response = await apiClient.post('/properties', formData, {
+      headers: {
+        'Content-Type': undefined // Let axios set it automatically for FormData
+      }
+    });
     return response.data;
   } catch (error) {
     console.error('Error creating property:', error);
@@ -126,10 +132,15 @@ export const getProperties = async (filters = {}) => {
 export const getPropertyById = async (id) => {
   try {
     const response = await apiClient.get(`/properties/${id}`);
+    // Axios wraps the response in response.data
     return response.data;
   } catch (error) {
     console.error('Error fetching property:', error);
-    throw error.response?.data || error;
+    // Extract error message from axios error response
+    if (error.response?.data) {
+      throw new Error(error.response.data.message || error.response.data.error || 'Failed to fetch property');
+    }
+    throw error;
   }
 };
 

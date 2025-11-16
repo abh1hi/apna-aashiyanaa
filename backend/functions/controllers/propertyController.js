@@ -31,26 +31,39 @@ const createProperty = asyncHandler(async (req, res) => {
     // Get owner ID from authenticated user
     const ownerId = req.user.id;
 
+    // Ensure images is an array of valid URLs
+    let imageUrls = [];
+    if (images) {
+      if (Array.isArray(images)) {
+        // Filter out empty strings and ensure all are valid URLs
+        imageUrls = images.filter(img => img && typeof img === 'string' && img.trim() !== '');
+      } else if (typeof images === 'string' && images.trim() !== '') {
+        imageUrls = [images];
+      }
+    }
+
     const propertyData = {
       title, // Use title from validation
       description,
       listingType,
       propertyType,
-      price,
+      price: parseFloat(price),
       location,
       bedrooms: parseInt(bedrooms),
       bathrooms: parseFloat(bathrooms),
       area: parseFloat(area),
-      amenities: amenities ? amenities.split(',').map(a => a.trim()) : [],
-      images: images || [], // These are URLs from processAndAttachUrls middleware or empty array
+      amenities: amenities ? (typeof amenities === 'string' ? amenities.split(',').map(a => a.trim()) : amenities) : [],
+      images: imageUrls, // Array of image URLs
       ownerId,
       status: 'active',
     };
 
-    console.log('propertyData before create:', propertyData);
+    console.log('propertyData before create:', JSON.stringify(propertyData, null, 2));
+    console.log('Images array:', imageUrls);
 
     const property = await Property.create(propertyData);
 
+    console.log('Property created successfully:', property.id);
     res.status(201).json(property);
   } catch (error) {
     console.error('Error in createProperty:', error);

@@ -20,15 +20,16 @@ router.post(
     protect,
     upload.array('images', 10), // 1. Multer middleware for parsing files
     // 2. Custom middleware for processing and getting URLs (only if files exist)
-    (req, res, next) => {
+    async (req, res, next) => {
         if (req.files && req.files.length > 0) {
+            // Files were uploaded, process them and get URLs
             return processAndAttachUrls('properties')(req, res, next);
         }
-        // No files to process, continue to validation
-        req.body.images = [];
+        // No files to process, but image URLs might be in req.body.images
+        // Let parseFormDataJson handle parsing the images array
         next();
     },
-    parseFormDataJson,
+    parseFormDataJson, // This will parse images from FormData if they're URLs
     propertyValidationRules(),
     validate, 
     propertyController.createProperty
