@@ -17,10 +17,34 @@ const propertyValidationRules = () => {
         .isFloat({min: 0})
         .withMessage('Price must be a positive number'),
 
-    body('address')
+    body('location.address')
         .trim()
         .isLength({min: 10})
-        .withMessage('Address must be at least 10 characters'),
+        .withMessage('Location address must be at least 10 characters'),
+
+    body('location.city')
+        .optional()
+        .trim()
+        .isLength({min: 2})
+        .withMessage('City must be at least 2 characters'),
+
+    body('location.state')
+        .optional()
+        .trim()
+        .isLength({min: 2})
+        .withMessage('State must be at least 2 characters'),
+
+    body('location.country')
+        .optional()
+        .trim()
+        .isLength({min: 2})
+        .withMessage('Country must be at least 2 characters'),
+
+    body('location.pinCode')
+        .optional()
+        .trim()
+        .isLength({min: 4, max: 10})
+        .withMessage('Pin code must be between 4 and 10 characters'),
 
     body('propertyType')
         .isIn(['apartment', 'house', 'land', 'commercial'])
@@ -38,12 +62,12 @@ const propertyValidationRules = () => {
         .isFloat({min: 0})
         .withMessage('Area must be a positive number'),
 
-    body('latitude')
+    body('location.latitude')
         .optional()
         .isFloat({min: -90, max: 90})
         .withMessage('Latitude must be between -90 and 90'),
 
-    body('longitude')
+    body('location.longitude')
         .optional()
         .isFloat({min: -180, max: 180})
         .withMessage('Longitude must be between -180 and 180'),
@@ -52,6 +76,11 @@ const propertyValidationRules = () => {
         .optional()
         .isArray()
         .withMessage('Amenities must be an array'),
+
+    body('images')
+        .optional()
+        .isArray()
+        .withMessage('Images must be an array'),
   ];
 };
 
