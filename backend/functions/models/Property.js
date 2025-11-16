@@ -1,4 +1,5 @@
 const { db, docWithId, docsWithIds } = require('../config/firestore');
+const admin = require('firebase-admin'); // Required for FieldValue
 const slugify = require('slugify');
 
 class Property {
@@ -7,9 +8,7 @@ class Property {
    */
   static async create(propertyData) {
     try {
-      // Generate slug from title
       const slug = slugify(propertyData.title, { lower: true, strict: true });
-
       const docRef = await this.collection.add({
         ...propertyData,
         slug: `${slug}-${Date.now()}`,
@@ -19,7 +18,6 @@ class Property {
         views: 0,
         favorites: 0
       });
-
       const doc = await docRef.get();
       return docWithId(doc);
     } catch (error) {
@@ -29,19 +27,12 @@ class Property {
   }
 
   /**
-   * Find property by ID
+   * Find property by ID. This method no longer increments the view count.
+   * The controller should handle view increments as a separate action.
    */
   static async findById(propertyId) {
     try {
       const doc = await this.collection.doc(propertyId).get();
-      
-      if (doc.exists) {
-        // Increment view count
-        await this.collection.doc(propertyId).update({
-          views: (doc.data().views || 0) + 1
-        });
-      }
-
       return docWithId(doc);
     } catch (error) {
       console.error('Error finding property by ID:', error);
@@ -50,25 +41,13 @@ class Property {
   }
 
   /**
-   * Find property by slug
+   * Find property by slug. This method no longer increments the view count.
    */
   static async findBySlug(slug) {
     try {
-      const snapshot = await this.collection
-        .where('slug', '==', slug)
-        .limit(1)
-        .get();
-
+      const snapshot = await this.collection.where('slug', '==', slug).limit(1).get();
       if (snapshot.empty) return null;
-      
-      const property = docWithId(snapshot.docs[0]);
-      
-      // Increment view count
-      await this.collection.doc(property.id).update({
-        views: (property.views || 0) + 1
-      });
-
-      return property;
+      return docWithId(snapshot.docs[0]);
     } catch (error) {
       console.error('Error finding property by slug:', error);
       throw error;
@@ -80,62 +59,21 @@ class Property {
    */
   static async findAll(filters = {}) {
     try {
-      const {
-        status = 'active',
-        city,
-        propertyType,
-        minPrice,
-        maxPrice,
-        bedrooms,
-        ownerId,
-        limit = 50,
-        startAfter = null,
-        orderBy = 'createdAt',
-        orderDirection = 'desc',
-        isFeatured // Add isFeatured filter
-      } = filters;
-
+      const { status = 'active', city, propertyType, minPrice, maxPrice, bedrooms, ownerId, limit = 50, startAfter = null, orderBy = 'createdAt', orderDirection = 'desc', isFeatured } = filters;
       let query = this.collection.where('status', '==', status);
 
-      // Apply filters
-      if (city) {
-        query = query.where('location.city', '==', city);
-      }
+      if (city) query = query.where('location.city', '==', city);
+      if (propertyType) query = query.where('propertyType', '==', propertyType);
+      if (ownerId) query = query.where('ownerId', '==', ownerId);
+      if (bedrooms) query = query.where('bedrooms', '==', parseInt(bedrooms));
+      if (isFeatured !== undefined) query = query.where('isFeatured', '==', isFeatured);
 
-      if (propertyType) {
-        query = query.where('propertyType', '==', propertyType);
-      }
+      if (minPrice) query = query.where('price', '>=', parseInt(minPrice));
+      if (maxPrice) query = query.where('price', '<=', parseInt(maxPrice));
+      
+      query = query.orderBy('price').orderBy(orderBy, orderDirection);
 
-      if (ownerId) {
-        query = query.where('ownerId', '==', ownerId);
-      }
-
-      if (bedrooms) {
-        query = query.where('bedrooms', '==', parseInt(bedrooms));
-      }
-
-      if (isFeatured !== undefined) { // Apply isFeatured filter
-        query = query.where('isFeatured', '==', isFeatured);
-      }
-
-      // Note: Firestore doesn't support multiple range queries on different fields
-      // You'll need composite indexes for complex queries
-      if (minPrice && !maxPrice) {
-        query = query.where('price', '>=', parseInt(minPrice));
-      } else if (maxPrice && !minPrice) {
-        query = query.where('price', '<=', parseInt(maxPrice));
-      } else if (minPrice && maxPrice) {
-        query = query
-          .where('price', '>=', parseInt(minPrice))
-          .where('price', '<=', parseInt(maxPrice));
-      }
-
-      // Order and limit
-      query = query.orderBy(orderBy, orderDirection);
-
-      if (startAfter) {
-        query = query.startAfter(startAfter);
-      }
+      if (startAfter) query = query.startAfter(startAfter);
 
       query = query.limit(limit);
 
@@ -148,16 +86,13 @@ class Property {
   }
 
   /**
-   * Search properties by title or description
+   * Search properties. WARNING: This is a highly inefficient client-side search.
+   * For production, replace this with a dedicated search service like Algolia.
    */
   static async search(searchTerm, filters = {}) {
     try {
-      // Note: Firestore doesn't have full-text search
-      // This is a basic implementation. For production, use Algolia or similar
       const allProperties = await this.findAll(filters);
-      
       const searchLower = searchTerm.toLowerCase();
-      
       return allProperties.filter(property => {
         const titleMatch = property.title?.toLowerCase().includes(searchLower);
         const descMatch = property.description?.toLowerCase().includes(searchLower);
@@ -174,17 +109,17 @@ class Property {
    */
   static async update(propertyId, updateData) {
     try {
-      // If title is updated, regenerate slug
       if (updateData.title) {
         updateData.slug = `${slugify(updateData.title, { lower: true, strict: true })}-${Date.now()}`;
       }
-
-      await this.collection.doc(propertyId).update({
+      const docRef = this.collection.doc(propertyId);
+      await docRef.update({
         ...updateData,
         updatedAt: new Date()
       });
-
-      return await this.findById(propertyId);
+      // Fetch the document directly after update to avoid side effects from other methods
+      const doc = await docRef.get();
+      return docWithId(doc);
     } catch (error) {
       console.error('Error updating property:', error);
       throw error;
@@ -192,14 +127,11 @@ class Property {
   }
 
   /**
-   * Delete property (soft delete)
+   * Soft delete property
    */
   static async delete(propertyId) {
     try {
-      await this.collection.doc(propertyId).update({
-        status: 'deleted',
-        deletedAt: new Date()
-      });
+      await this.collection.doc(propertyId).update({ status: 'deleted', deletedAt: new Date() });
       return true;
     } catch (error) {
       console.error('Error deleting property:', error);
@@ -217,21 +149,17 @@ class Property {
     } catch (error) {
       console.error('Error hard deleting property:', error);
       throw error;
-    } 
+    }
   }
 
   /**
-   * Increment favorites count
+   * Atomically increments the favorites count for a property.
    */
   static async incrementFavorites(propertyId) {
     try {
-      const property = await this.findById(propertyId);
-      if (!property) throw new Error('Property not found');
-
       await this.collection.doc(propertyId).update({
-        favorites: (property.favorites || 0) + 1
+        favorites: admin.firestore.FieldValue.increment(1)
       });
-
       return true;
     } catch (error) {
       console.error('Error incrementing favorites:', error);
@@ -240,17 +168,13 @@ class Property {
   }
 
   /**
-   * Decrement favorites count
+   * Atomically decrements the favorites count for a property.
    */
   static async decrementFavorites(propertyId) {
     try {
-      const property = await this.findById(propertyId);
-      if (!property) throw new Error('Property not found');
-
       await this.collection.doc(propertyId).update({
-        favorites: Math.max((property.favorites || 0) - 1, 0)
+        favorites: admin.firestore.FieldValue.increment(-1)
       });
-
       return true;
     } catch (error) {
       console.error('Error decrementing favorites:', error);

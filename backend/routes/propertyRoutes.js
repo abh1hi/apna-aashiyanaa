@@ -1,55 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const propertyController = require('../controllers/propertyController');
+const {
+  createProperty,
+  getProperties,
+  getPropertyById,
+} = require('../controllers/propertyController');
 const { protect } = require('../middleware/authMiddleware');
-const { upload, handleMulterError } = require('../middleware/upload');
-const { propertyValidationRules, validate } = require('../middleware/validation');
 
-// Public routes for fetching properties
-router.get('/', propertyController.getProperties);
-router.get('/search', propertyController.searchProperties);
-router.get('/:id', propertyController.getPropertyById);
+// Public route to get all properties
+router.get('/', getProperties);
 
-// Private routes for managing properties
-router.get('/user/my-properties', protect, propertyController.getUserProperties);
+// Public route to get a single property by ID
+router.get('/:id', getPropertyById);
 
-// Create property with images
-router.post(
-  '/',
-  protect,
-  upload.array('images', 10),
-  handleMulterError,
-  propertyValidationRules(),
-  validate,
-  propertyController.createProperty
-);
-
-// Update property with optional new images
-router.put(
-  '/:id',
-  protect,
-  upload.array('images', 10),
-  handleMulterError,
-  propertyController.updateProperty
-);
-
-// Upload images to existing property
-router.post(
-  '/:id/images',
-  protect,
-  upload.array('images', 10),
-  handleMulterError,
-  propertyController.uploadPropertyImages
-);
-
-// Delete specific image from property
-router.delete(
-  '/:id/images/:imageIndex',
-  protect,
-  propertyController.deletePropertyImage
-);
-
-// Delete property
-router.delete('/:id', protect, propertyController.deleteProperty);
+// Private route to create a new property
+// The 'protect' middleware ensures only authenticated users can access this
+router.post('/', protect, createProperty);
 
 module.exports = router;

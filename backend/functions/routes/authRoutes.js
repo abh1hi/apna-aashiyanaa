@@ -2,18 +2,11 @@ const express = require('express');
 const router = express.Router();
 const {
   registerOrLoginWithPhone,
-  loginWithPassword,
-  checkAuthMethod,
 } = require('../controllers/authController');
 
-// Define the routes for user authentication
+// This single endpoint handles both user registration and login.
+// The client sends a Firebase ID token, and the controller determines
+// whether to create a new user or log in an existing one.
 router.post('/phone', registerOrLoginWithPhone);
-router.post('/register', registerOrLoginWithPhone);
-
-// Password-based login
-router.post('/login/password', loginWithPassword);
-
-// Check available authentication methods for a user
-router.post('/check-auth-method', checkAuthMethod);
 
 module.exports = router;
