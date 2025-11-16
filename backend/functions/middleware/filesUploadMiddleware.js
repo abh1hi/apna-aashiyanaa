@@ -2,11 +2,9 @@ const multer = require('multer');
 const { processImages } = require('../utils/imageUpload');
 const asyncHandler = require('express-async-handler');
 
-// Configure multer for memory storage
-const multerStorage = multer.memoryStorage();
-
+// Configure multer for memory storage and file filtering
 const upload = multer({
-  storage: multerStorage,
+  storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image')) {
       cb(null, true);
@@ -17,30 +15,28 @@ const upload = multer({
 });
 
 /**
- * Middleware to handle multiple image uploads, process them, and attach their URLs to the request.
- * @param {string} fieldName - The name of the field in the multipart form data for the images.
+ * Middleware to process images after multer has parsed them. 
+ * It uploads them to storage and attaches the URLs to req.body.
+ * This should be used in the route chain *after* upload.array() or upload.single().
  * @param {string} destinationPath - The path in Firebase Storage where images will be stored.
  */
-const filesUploadMiddleware = (fieldName, destinationPath) => asyncHandler(async (req, res, next) => {
-  // Use multer to parse the files
-  upload.array(fieldName)(req, res, async (err) => {
-    if (err) {
-      return res.status(400).json({ message: err.message });
-    }
+const processAndAttachUrls = (destinationPath) => asyncHandler(async (req, res, next) => {
+  if (!req.files || req.files.length === 0) {
+    return next(); // No files to process, continue to the next middleware.
+  }
 
-    // Process and upload images
-    if (req.files) {
-      try {
-        const imageObjects = await processImages(req.files, destinationPath);
-        // Attach image URLs to the request body
-        req.body.images = imageObjects.map(img => img.url);
-      } catch (uploadError) {
-        return res.status(500).json({ message: uploadError.message });
-      }
-    }
-
+  try {
+    const imageObjects = await processImages(req.files, destinationPath);
+    // Attach image URLs to the request body for the controller to use.
+    req.body.images = imageObjects.map(img => img.url);
     next();
-  });
+  } catch (error) {
+    // Pass any errors to the Express error handler.
+    next(error);
+  }
 });
 
-module.exports = filesUploadMiddleware;
+module.exports = {
+  upload,
+  processAndAttachUrls,
+};
