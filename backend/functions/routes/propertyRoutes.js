@@ -17,7 +17,15 @@ router.post(
     '/',
     protect,
     upload.array('images', 10), // 1. Multer middleware for parsing files
-    processAndAttachUrls('properties'), // 2. Custom middleware for processing and getting URLs
+    // 2. Custom middleware for processing and getting URLs (only if files exist)
+    (req, res, next) => {
+        if (req.files && req.files.length > 0) {
+            return processAndAttachUrls('properties')(req, res, next);
+        }
+        // No files to process, continue to validation
+        req.body.images = [];
+        next();
+    },
     propertyValidationRules(),
     validate, 
     propertyController.createProperty
@@ -27,7 +35,13 @@ router.put(
     '/:id',
     protect,
     upload.array('images', 10),
-    processAndAttachUrls('properties'),
+    // Only process images if new ones are uploaded
+    (req, res, next) => {
+        if (req.files && req.files.length > 0) {
+            return processAndAttachUrls('properties')(req, res, next);
+        }
+        next();
+    },
     propertyController.updateProperty
 );
 
