@@ -3,16 +3,23 @@ const express = require("express");
 const cors = require("cors");
 const admin = require("firebase-admin");
 
+// Log module load start
+console.log('Loading API module - start');
+
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
   try {
+    console.log('Initializing Firebase Admin SDK...');
     admin.initializeApp();
     console.log('Firebase Admin initialized successfully');
   } catch (error) {
     console.error('Failed to initialize Firebase Admin:', error);
-    throw error;
+    // Do not throw here to allow container to start and surface logs; rethrowing
+    // prevents the process from starting in some environments.
   }
 }
+
+console.log('Loading API module - complete');
 
 // Create Express app
 const app = express();

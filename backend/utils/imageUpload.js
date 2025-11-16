@@ -1,4 +1,10 @@
-const sharp = require('sharp');
+let sharp;
+try {
+  sharp = require('sharp');
+} catch (err) {
+  console.warn('sharp is not available here; image processing will be skipped:', err && err.message);
+  sharp = null;
+}
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -14,6 +20,21 @@ const compressImage = async (buffer, options = {}) => {
       quality = 80,
       format = 'webp'
     } = options;
+
+    // If sharp isn't available, return original as base64
+    if (!sharp) {
+      const base64Image = `data:${options.mimeType || 'image/*'};base64,${buffer.toString('base64')}`;
+      return {
+        success: true,
+        data: base64Image,
+        size: buffer.length,
+        originalSize: buffer.length,
+        compressionRatio: '0%',
+        format: options.format || 'original',
+        width: null,
+        height: null
+      };
+    }
 
     // Get image metadata
     const metadata = await sharp(buffer).metadata();

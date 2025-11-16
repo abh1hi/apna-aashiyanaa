@@ -1,4 +1,12 @@
-const sharp = require('sharp');
+let sharp;
+try {
+  sharp = require('sharp');
+} catch (err) {
+  // sharp optional on platforms where native binary isn't available at build time.
+  // We will fall back to uploading the original image if sharp isn't present.
+  console.warn('sharp is not available; image processing will be skipped:', err && err.message);
+  sharp = null;
+}
 const { v4: uuidv4 } = require('uuid');
 const admin = require('firebase-admin');
 
@@ -10,7 +18,12 @@ const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
  * @param {Buffer} fileBuffer - The buffer of the image file.
  * @returns {Promise<object>} An object containing the compressed image data and its size.
  */
-const compressImage = async (fileBuffer) => {
+const compressImage = async (fileBuffer, originalMime) => {
+  // If sharp isn't available, return original buffer and mime type
+  if (!sharp) {
+    return { data: fileBuffer, size: fileBuffer.length, contentType: originalMime };
+  }
+
   try {
     let buffer = await sharp(fileBuffer)
       .webp({ quality: 80 })
@@ -22,10 +35,11 @@ const compressImage = async (fileBuffer) => {
         .toBuffer();
     }
 
-    return { data: buffer, size: buffer.length };
+    return { data: buffer, size: buffer.length, contentType: 'image/webp' };
   } catch (error) {
     console.error('Error compressing image:', error);
-    throw new Error('Could not process image.');
+    // If processing fails, fall back to original
+    return { data: fileBuffer, size: fileBuffer.length, contentType: originalMime };
   }
 };
 
@@ -35,17 +49,20 @@ const processAndUploadImage = async (file, path) => {
     throw new Error('File is not an image.');
   }
 
-  const result = await compressImage(file.buffer);
-  
+  const result = await compressImage(file.buffer, file.mimetype);
+
   // --- STORAGE UPLOAD SECTION ---
   const bucket = admin.storage().bucket();
   const fileId = uuidv4();
-  const filePath = `${path}/${fileId}.webp`;
+
+  // Use file extension based on contentType (prefer webp when processed)
+  const ext = result.contentType === 'image/webp' ? 'webp' : (file.originalname && file.originalname.split('.').pop()) || 'bin';
+  const filePath = `${path}/${fileId}.${ext}`;
   const fileUpload = bucket.file(filePath);
 
   const stream = fileUpload.createWriteStream({
     metadata: {
-      contentType: 'image/webp',
+      contentType: result.contentType || 'application/octet-stream',
     },
     resumable: false
   });
