@@ -1,56 +1,34 @@
 const express = require('express');
 const router = express.Router();
 const propertyController = require('../controllers/propertyController');
-const {protect} = require('../middleware/authMiddleware');
-const {propertyValidationRules, validate} = require('../middleware/validation');
+const { protect } = require('../middleware/authMiddleware');
+const { propertyValidationRules, validate } = require('../middleware/validation');
+const filesUploadMiddleware = require('../middleware/filesUploadMiddleware');
 
-const {upload, handleMulterError} = require('../middleware/upload');
-
-// Public routes for fetching properties
+// Public routes
 router.get('/', propertyController.getProperties);
 router.get('/search', propertyController.searchProperties);
-router.get('/:id', propertyController.getPropertyById);
+router.get('/:id', propertyController.getPropertyByIdOrSlug);
 
-// Private routes for managing properties
+// Private routes
 router.get('/user/my-properties', protect, propertyController.getUserProperties);
 
-// Create property with images
 router.post(
     '/',
     protect,
-    upload.array('images', 10),
-    handleMulterError,
+    filesUploadMiddleware('images', 'properties'), 
     propertyValidationRules(),
-    validate,
-    propertyController.createProperty,
+    validate, 
+    propertyController.createProperty
 );
 
-// Update property with optional new images
 router.put(
     '/:id',
     protect,
-    upload.array('images', 10),
-    handleMulterError,
-    propertyController.updateProperty,
+    filesUploadMiddleware('images', 'properties'),
+    propertyController.updateProperty
 );
 
-// Upload images to existing property
-router.post(
-    '/:id/images',
-    protect,
-    upload.array('images', 10),
-    handleMulterError,
-    propertyController.uploadPropertyImages,
-);
-
-// Delete specific image from property
-router.delete(
-    '/:id/images/:imageIndex',
-    protect,
-    propertyController.deletePropertyImage,
-);
-
-// Delete property
 router.delete('/:id', protect, propertyController.deleteProperty);
 
 module.exports = router;
