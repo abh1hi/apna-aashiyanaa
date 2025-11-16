@@ -7,10 +7,10 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import axios from 'axios';
 import api from './api';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+// Use the same API base URL from the consolidated api.js
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://us-central1-apnaashiyanaa-app.cloudfunctions.net/api';
 
 class AuthService {
   constructor() {
@@ -73,8 +73,9 @@ class AuthService {
       const result = await this.confirmationResult.confirm(otp);
       const user = result.user;
       const idToken = await user.getIdToken();
-      const response = await axios.post(`${API_BASE_URL}/auth/phone`, { idToken });
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      // Use the consolidated API client
+      const response = await api.post('/auth/phone', { idToken });
+      localStorage.setItem('user', JSON.stringify(response.data.user || response.data));
       return { success: true, ...response.data };
     } catch (error) {
       console.error('Error during OTP verification and login:', error);
@@ -93,8 +94,9 @@ class AuthService {
       const result = await this.confirmationResult.confirm(otp);
       const user = result.user;
       const idToken = await user.getIdToken();
-      const response = await axios.post(`${API_BASE_URL}/auth/phone`, { ...userData, idToken });
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      // Use the consolidated API client
+      const response = await api.post('/auth/phone', { idToken, ...userData });
+      localStorage.setItem('user', JSON.stringify(response.data.user || response.data));
       return { success: true, ...response.data };
     } catch (error) {
       console.error('Error during OTP verification and registration:', error);

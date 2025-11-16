@@ -2,18 +2,85 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getFirebaseUid() {
+      return request.auth.uid;
+    }
+    
+    // Helper to check if user owns a property
+    // ownerId in property is the Firestore document ID of the user
+    // We need to check if the current user's Firestore document ID matches
+    function isPropertyOwner(ownerId) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(ownerId)) &&
+             get(/databases/$(database)/documents/users/$(ownerId)).data.firebaseUid == getFirebaseUid();
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Check if the document's firebaseUid matches the authenticated user's UID
+      function isOwnProfile() {
+        return isAuthenticated() && resource.data.firebaseUid == getFirebaseUid();
+      }
+      
+      // Users can read their own profile
+      allow read: if isOwnProfile();
+      
+      // Users can update their own profile (creation is handled by backend)
+      allow update: if isOwnProfile();
+      
+      // Only backend can create users (via Cloud Functions)
+      allow create: if false;
+      
+      // Users cannot delete themselves (soft delete handled by backend)
+      allow delete: if false;
+    }
+    
+    // Properties collection
+    match /properties/{propertyId} {
+      // Public read for active properties only
+      allow read: if resource.data.status == 'active' || isPropertyOwner(resource.data.ownerId);
+      
+      // Authenticated users can create properties (ownerId will be set by backend)
+      allow create: if isAuthenticated();
+      
+      // Only property owner can update their property
+      allow update: if isAuthenticated() && isPropertyOwner(resource.data.ownerId);
+      
+      // Only property owner can delete their property (soft delete handled by backend)
+      allow delete: if isAuthenticated() && isPropertyOwner(resource.data.ownerId);
+    }
+    
+    // Favorites collection (if implemented in future)
+    match /favorites/{favoriteId} {
+      // Helper to check if favorite belongs to current user
+      // userId in favorite is the Firestore document ID of the user
+      function isOwnFavorite() {
+        return isAuthenticated() && 
+               exists(/databases/$(database)/documents/users/$(resource.data.userId)) &&
+               get(/databases/$(database)/documents/users/$(resource.data.userId)).data.firebaseUid == getFirebaseUid();
+      }
+      
+      // Users can only read their own favorites
+      allow read: if isOwnFavorite();
+      
+      // Users can create their own favorites (userId must match authenticated user's Firestore ID)
+      allow create: if isAuthenticated() && 
+                      exists(/databases/$(database)/documents/users/$(request.resource.data.userId)) &&
+                      get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.firebaseUid == getFirebaseUid();
+      
+      // Users can delete their own favorites
+      allow delete: if isOwnFavorite();
+    }
+    
+    // Deny all other collections
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2025, 12, 10);
+      allow read, write: if false;
     }
   }
 }

@@ -1,14 +1,13 @@
 import axios from 'axios';
 import authService from './authService';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+// Use deployed Firebase function URL as default
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://us-central1-apnaashiyanaa-app.cloudfunctions.net/api';
 
 // Create the base axios instance for our API.
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  // Content-Type will be set by interceptor based on data type
 });
 
 // Use an async interceptor to add the Firebase auth token to every request.
@@ -18,6 +17,11 @@ api.interceptors.request.use(async (config) => {
   
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  
+  // Set Content-Type for JSON requests only (not for FormData)
+  if (!config.headers['Content-Type'] && !(config.data instanceof FormData)) {
+    config.headers['Content-Type'] = 'application/json';
   }
   
   return config;
@@ -42,8 +46,8 @@ api.interceptors.response.use(
 // Export API functions grouped by resource.
 
 export const authApi = {
-  loginWithPhone: (idToken) => api.post('/auth/phone', { idToken }),
-  register: (userData) => api.post('/auth/register', userData),
+  // Phone authentication - handles both registration and login
+  loginWithPhone: (idToken, userData = {}) => api.post('/auth/phone', { idToken, ...userData }),
 };
 
 export const userApi = {

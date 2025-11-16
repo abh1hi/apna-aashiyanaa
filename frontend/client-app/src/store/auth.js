@@ -18,7 +18,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const isAuthenticated = computed(() => !!token.value && !!user.value);
+  // Check authentication based on Firebase auth state and stored user
+  const isAuthenticated = computed(() => {
+    // Check if we have a user in localStorage and Firebase auth
+    return !!user.value;
+  });
   const userInitials = computed(() => {
     if (user.value && user.value.name) {
       return user.value.name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -47,17 +51,9 @@ export const useAuthStore = defineStore('auth', () => {
     // The favorites store should listen to auth changes or be cleared via an action subscription.
   }
 
-  async function login(credentials) {
-    const { data } = await authApi.loginWithPassword(credentials.mobile, credentials.password);
-    setAuth({ user: data, token: data.token });
-    return data;
-  }
-  
-  async function register(userData) {
-    const { data } = await authApi.register(userData);
-    setAuth({ user: data, token: data.token });
-    return data;
-  }
+  // Phone auth login/register - handled by authService
+  // This store is mainly for state management
+  // Actual auth is done through authService.verifyOTPAndLogin/Register
 
   return {
     user,
