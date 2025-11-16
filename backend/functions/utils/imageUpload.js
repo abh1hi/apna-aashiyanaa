@@ -1,6 +1,6 @@
 const sharp = require('sharp');
 const { v4: uuidv4 } = require('uuid');
-const { admin } = require('../config/firebase');
+const admin = require('firebase-admin');
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 
