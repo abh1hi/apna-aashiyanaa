@@ -108,6 +108,16 @@
                           <input id="city" v-model="formData.location.city" required placeholder="e.g., Mumbai"/>
                       </div>
                       <div class="form-group">
+                          <label for="state">State *</label>
+                          <input id="state" v-model="formData.location.state" required placeholder="e.g., Maharashtra"/>
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="form-group">
+                          <label for="country">Country *</label>
+                          <input id="country" v-model="formData.location.country" required placeholder="e.g., India"/>
+                      </div>
+                      <div class="form-group">
                           <label for="pincode">Pincode *</label>
                           <input id="pincode" v-model="formData.location.pincode" required placeholder="e.g., 400001"/>
                       </div>
@@ -191,6 +201,8 @@ const formData = reactive({
   location: {
     address: '',
     city: '',
+    state: 'Maharashtra',
+    country: 'India',
     pincode: '',
   },
   specifications: {
@@ -225,18 +237,35 @@ const handleSubmit = async () => {
   try {
     const data = new FormData();
     
-    // Append all form data fields
-    Object.keys(formData).forEach(key => {
-      const value = formData[key];
-      if (key === 'images') return; // Skip images for now
-      if (typeof value === 'object' && value !== null) {
-        data.append(key, JSON.stringify(value));
-      } else {
-        data.append(key, value);
-      }
-    });
-
-    // Append image files
+    // Map form data to backend schema - transform field names as needed
+    // Backend expects 'title', form has 'name'
+    data.append('title', formData.name);
+    data.append('description', formData.description);
+    data.append('price', formData.price);
+    data.append('propertyType', formData.propertyType.toLowerCase());
+    data.append('listingType', formData.listingType);
+    
+    // Location - backend expects 'location' as JSON object
+    const location = {
+      address: formData.location.address,
+      city: formData.location.city,
+      state: formData.location.state || 'Maharashtra', // Default state if not provided
+      country: formData.location.country || 'India', // Default country if not provided
+      pinCode: formData.location.pincode, // pincode -> pinCode
+    };
+    data.append('location', JSON.stringify(location));
+    
+    // Specifications - backend expects these as top-level, not nested
+    data.append('bedrooms', formData.specifications.bedrooms);
+    data.append('bathrooms', formData.specifications.bathrooms);
+    data.append('area', formData.specifications.area);
+    
+    // Amenities
+    if (formData.amenities && formData.amenities.length > 0) {
+      data.append('amenities', formData.amenities.join(','));
+    }
+    
+    // Images
     selectedImageFiles.value.forEach(file => {
       data.append('images', file);
     });
@@ -247,7 +276,14 @@ const handleSubmit = async () => {
 
   } catch (error) {
     console.error('Failed to create property:', error);
-    alert('An error occurred while creating the property. Please check the console for details and try again.');
+    // Log detailed errors for debugging
+    if (error.errors) {
+      console.error('Validation errors:', error.errors);
+      const errorMessages = error.errors.map(e => `${Object.keys(e)[0]}: ${Object.values(e)[0]}`).join(', ');
+      alert(`Validation failed:\n${errorMessages}`);
+    } else {
+      alert('An error occurred while creating the property. Please check the console for details and try again.');
+    }
   } finally {
     isSubmitting.value = false;
   }

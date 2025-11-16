@@ -1,11 +1,7 @@
 import axios from 'axios';
+import authService from './authService';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001/test1-50da1/us-central1/api';
-
-// Get auth token from localStorage
-const getAuthToken = () => {
-  return localStorage.getItem('token');
-};
 
 // Create axios instance with auth header
 const apiClient = axios.create({
@@ -15,10 +11,10 @@ const apiClient = axios.create({
   }
 });
 
-// Add token to requests
+// Add Firebase ID token to requests dynamically
 apiClient.interceptors.request.use(
-  (config) => {
-    const token = getAuthToken();
+  async (config) => {
+    const token = await authService.getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -36,11 +32,7 @@ apiClient.interceptors.request.use(
  */
 export const createProperty = async (formData) => {
   try {
-    const response = await apiClient.post('/properties', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
+    const response = await apiClient.post('/properties', formData);
     return response.data;
   } catch (error) {
     console.error('Error creating property:', error);
@@ -56,11 +48,7 @@ export const createProperty = async (formData) => {
  */
 export const updateProperty = async (id, formData) => {
   try {
-    const response = await apiClient.put(`/properties/${id}`, formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data'
-        }
-    });
+    const response = await apiClient.put(`/properties/${id}`, formData);
     return response.data;
   } catch (error) {
     console.error('Error updating property:', error);

@@ -2,16 +2,18 @@ const express = require('express');
 const router = express.Router();
 const propertyController = require('../controllers/propertyController');
 const { protect } = require('../middleware/authMiddleware');
-const { propertyValidationRules, validate } = require('../middleware/validation');
+const { propertyValidationRules, validate, parseFormDataJson } = require('../middleware/validation');
 const { upload, processAndAttachUrls } = require('../middleware/filesUploadMiddleware');
 
 // Public routes
 router.get('/', propertyController.getProperties);
 router.get('/search', propertyController.searchProperties);
-router.get('/:id', propertyController.getPropertyByIdOrSlug);
 
-// Private routes
+// Private routes - MUST come before parameterized routes
 router.get('/user/my-properties', protect, propertyController.getUserProperties);
+
+// Parameterized route - MUST come last to avoid route collision
+router.get('/:id', propertyController.getPropertyByIdOrSlug);
 
 router.post(
     '/',
@@ -26,6 +28,7 @@ router.post(
         req.body.images = [];
         next();
     },
+    parseFormDataJson,
     propertyValidationRules(),
     validate, 
     propertyController.createProperty

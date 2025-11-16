@@ -8,7 +8,7 @@ class Property {
    */
   static async create(propertyData) {
     try {
-      const slug = slugify(propertyData.name, { lower: true, strict: true });
+      const slug = slugify(propertyData.title, { lower: true, strict: true });
       const docRef = await this.collection.add({
         ...propertyData,
         slug: `${slug}-${Date.now()}`,
