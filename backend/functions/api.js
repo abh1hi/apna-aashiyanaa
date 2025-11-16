@@ -1,32 +1,36 @@
-const functions = require('firebase-functions');
-const express = require('express');
-const cors = require('cors');
-const admin = require('firebase-admin');
+const { onRequest } = require("firebase-functions/v2/https");
+const { setGlobalOptions } = require("firebase-functions/v2");
+const express = require("express");
+const cors = require("cors");
+const admin = require("firebase-admin");
 
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+// Set global options for all functions in this file
+setGlobalOptions({ region: "us-central1" });
+
 // Create Express app
 const app = express();
 
-// CORS configuration - FIXED to include HTTPS localhost
+// CORS configuration
 const corsOptions = {
-  origin: process.env.CORS_ORIGINS?.split(',') || [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'https://localhost:5173',  // Added HTTPS support
-    'https://localhost:5174',
-    'https://apnaashiyanaa-app.web.app'   // Added HTTPS support
+  origin: process.env.CORS_ORIGINS?.split(",") || [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://localhost:5173",
+    "https://localhost:5174",
+    "https://apnaashiyanaa-app.web.app",
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 204  // For legacy browser support
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
 };
 
-// Apply CORS middleware FIRST - handles all preflight requests automatically
+// Apply CORS middleware
 app.use(cors(corsOptions));
 
 // Body parsing middleware
@@ -34,32 +38,31 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get("/health", (req, res) => {
   res.status(200).json({
-    status: 'healthy',
+    status: "healthy",
     timestamp: new Date().toISOString(),
-    service: 'Apna Aashiyanaa API'
+    service: "Apna Aashiyanaa API",
   });
 });
 
 // Import routes
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
-const propertyRoutes = require('./routes/propertyRoutes');
+const authRoutes = require("./routes/authRoutes");
+const userRoutes = require("./routes/userRoutes");
+const propertyRoutes = require("./routes/propertyRoutes");
 
-app.use('/auth', authRoutes);
-app.use('/users', userRoutes);
-app.use('/properties', propertyRoutes);
+app.use("/auth", authRoutes);
+app.use("/users", userRoutes);
+app.use("/properties", propertyRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  console.error("Error:", err);
   res.status(err.status || 500).json({
     success: false,
-    error: err.message || 'Internal Server Error'
+    error: err.message || "Internal Server Error",
   });
 });
 
-// Export Express app as Cloud Function
-// FIXED: Changed region from asia-south1 to us-central1 to match deployment
-exports.api = functions.https.onRequest(app);
+// Export Express app as a 2nd Gen Cloud Function
+exports.api = onRequest(app);
