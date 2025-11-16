@@ -1,4 +1,10 @@
-const sharp = require('sharp');
+let sharp;
+try {
+  sharp = require('sharp');
+} catch (err) {
+  console.warn('sharp not available, image processing will be skipped', err && err.message ? err.message : err);
+}
+
 const { v4: uuidv4 } = require('uuid');
 const admin = require('firebase-admin');
 
@@ -11,6 +17,9 @@ const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
  * @returns {Promise<object>} An object containing the compressed image data and its size.
  */
 const compressImage = async (fileBuffer) => {
+  if (!sharp) {
+    throw new Error('Image processing library not available');
+  }
   try {
     let buffer = await sharp(fileBuffer)
       .webp({ quality: 80 })
@@ -87,9 +96,15 @@ const processAndUploadImage = async (file, path) => {
  * @returns {Promise<Array<object>>} An array of image metadata objects.
  */
 const processImages = async (files, path = 'images') => {
-    if (!files || files.length === 0) {
-        return [];
-    }
+  if (!files || files.length === 0) {
+    return [];
+  }
+
+  if (!sharp) {
+    console.warn('Skipping image processing/upload because sharp is not available in this environment');
+    return [];
+  }
+
   const uploadPromises = files.map(file => processAndUploadImage(file, path));
   return Promise.all(uploadPromises);
 };
