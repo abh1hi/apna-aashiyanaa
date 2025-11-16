@@ -12,6 +12,10 @@ router.get('/search', propertyController.searchProperties);
 // Private routes - MUST come before parameterized routes
 router.get('/user/my-properties', protect, propertyController.getUserProperties);
 
+// Image management routes - MUST come before /:id route to avoid conflicts
+router.delete('/:id/images/:imageId', protect, propertyController.deletePropertyImage);
+router.put('/:id/images/reorder', protect, propertyController.reorderPropertyImages);
+
 // Parameterized route - MUST come last to avoid route collision
 router.get('/:id', propertyController.getPropertyByIdOrSlug);
 

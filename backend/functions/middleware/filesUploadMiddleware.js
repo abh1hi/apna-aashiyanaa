@@ -16,19 +16,33 @@ const upload = multer({
 
 /**
  * Middleware to process images after multer has parsed them. 
- * It uploads them to storage and attaches the URLs to req.body.
+ * It uploads them to storage and attaches full image metadata to req.body.
  * This should be used in the route chain *after* upload.array() or upload.single().
  * @param {string} destinationPath - The path in Firebase Storage where images will be stored.
+ * @param {string} propertyId - Optional property ID for organizing images in storage
  */
-const processAndAttachUrls = (destinationPath) => asyncHandler(async (req, res, next) => {
+const processAndAttachUrls = (destinationPath, propertyId = null) => asyncHandler(async (req, res, next) => {
   if (!req.files || req.files.length === 0) {
     return next(); // No files to process, continue to the next middleware.
   }
 
   try {
-    const imageObjects = await processImages(req.files, destinationPath);
-    // Attach image URLs to the request body for the controller to use.
-    req.body.images = imageObjects.map(img => img.url);
+    // Use property ID in path if available for better organization
+    const storagePath = propertyId ? `${destinationPath}/${propertyId}` : destinationPath;
+    const imageObjects = await processImages(req.files, storagePath);
+    
+    // Store full image metadata objects instead of just URLs
+    // This includes: id, url, path, size, originalname, and order
+    req.body.images = imageObjects.map((img, index) => ({
+      id: img.id,
+      url: img.url,
+      path: img.path, // Storage path for cleanup
+      size: img.size,
+      originalName: img.originalname,
+      order: index, // Maintain upload order
+      uploadedAt: new Date()
+    }));
+    
     next();
   } catch (error) {
     // Pass any errors to the Express error handler.

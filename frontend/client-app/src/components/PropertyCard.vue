@@ -2,7 +2,7 @@
   <div class="bg-surface rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1 flex flex-col h-full group">
     <!-- Image Section -->
     <div class="relative overflow-hidden">
-      <img :src="property.images[0] || 'https://via.placeholder.com/400x250'" :alt="property.title" class="w-full h-52 object-cover transition-transform duration-500 ease-in-out group-hover:scale-105">
+      <img :src="getImageUrl(property.images?.[0]) || 'https://via.placeholder.com/400x250'" :alt="property.title" class="w-full h-52 object-cover transition-transform duration-500 ease-in-out group-hover:scale-105">
       <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
 
       <div class="absolute top-3 left-3 bg-primary/90 px-3 py-1 rounded-full text-xs font-bold text-on-primary uppercase tracking-wider">
@@ -77,6 +77,13 @@ const authStore = useAuthStore();
 
 // Placeholder for actual favorite logic
 const isFavorite = computed(() => props.property.featured); // Example logic
+
+// Helper function to get image URL (supports both old and new format)
+const getImageUrl = (image) => {
+  if (!image) return null;
+  if (typeof image === 'string') return image; // Old format: URL string
+  return image.url; // New format: object with url property
+};
 
 const toggleFavorite = () => {
   if (!authStore.isAuthenticated) {

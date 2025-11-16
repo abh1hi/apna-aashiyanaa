@@ -55,6 +55,10 @@ const processAndUploadImage = async (file, path) => {
   const stream = fileUpload.createWriteStream({
     metadata: {
       contentType: 'image/webp',
+      metadata: {
+        originalName: file.originalname,
+        uploadedAt: new Date().toISOString(),
+      }
     },
     resumable: false
   });
@@ -74,8 +78,12 @@ const processAndUploadImage = async (file, path) => {
           id: fileId,
           url: publicUrl,
           size: result.size,
-          path: filePath,
+          path: filePath, // Full storage path for cleanup
+          storagePath: filePath, // Alias for clarity
+          bucket: bucket.name,
           originalname: file.originalname,
+          contentType: 'image/webp',
+          uploadedAt: new Date()
         });
       } catch (err) {
         console.error('Could not make file public', err);

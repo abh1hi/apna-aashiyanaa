@@ -23,7 +23,7 @@
     <!-- Image Gallery -->
     <div class="relative">
       <div class="h-72 md:h-96 bg-surface-variant flex items-center justify-center">
-        <img v-if="property.images && property.images.length > 0" :src="property.images[0]" alt="Primary property image" class="w-full h-full object-cover">
+        <img v-if="property.images && property.images.length > 0" :src="property.images[0].url || property.images[0]" alt="Primary property image" class="w-full h-full object-cover">
         <div v-else class="text-on-surface-variant">Image not available</div>
       </div>
       <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/60 to-transparent"></div>
@@ -141,8 +141,19 @@ onMounted(async () => {
         const data = await propertyService.getPropertyById(propertyId)
         
         // Ensure images array exists and is properly formatted
+        // Support both old format (URL strings) and new format (metadata objects)
         if (!data.images || !Array.isArray(data.images)) {
             data.images = []
+        } else {
+            // Normalize images - ensure all have url property
+            data.images = data.images.map(img => {
+                if (typeof img === 'string') {
+                    // Old format: just URL string
+                    return { url: img, order: 0 }
+                }
+                // New format: already an object
+                return img
+            }).sort((a, b) => (a.order || 0) - (b.order || 0)) // Sort by order
         }
         
         // Ensure location object exists

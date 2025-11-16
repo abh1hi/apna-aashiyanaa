@@ -137,7 +137,28 @@ const propertyValidationRules = () => {
         .withMessage('Amenities should be a string (comma-separated)'),
 
     body('images')
-        .optional(),
+        .optional()
+        .custom((value) => {
+          // Allow images to be:
+          // - Array of URLs (strings)
+          // - Array of image objects
+          // - JSON string of array
+          // - Single URL string
+          if (value === undefined || value === null) return true;
+          if (Array.isArray(value)) return true;
+          if (typeof value === 'string') {
+            // Try to parse as JSON
+            try {
+              const parsed = JSON.parse(value);
+              return Array.isArray(parsed) || typeof parsed === 'string';
+            } catch (e) {
+              // If not JSON, treat as single URL string
+              return true;
+            }
+          }
+          return false;
+        })
+        .withMessage('Images must be an array of URLs or image objects, or a JSON string'),
   ];
 };
 
