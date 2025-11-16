@@ -7,8 +7,8 @@ const asyncHandler = require('express-async-handler');
 const createProperty = asyncHandler(async (req, res) => {
   const { title, description, price, location, bedrooms, bathrooms, area, propertyType, amenities, images } = req.body;
 
-  // Get owner ID from authenticated user
-  const ownerId = req.user.uid;
+  // Get owner ID from authenticated user (firebaseUid from User model)
+  const ownerId = req.user.firebaseUid;
 
   const property = await Property.create({
     ownerId,
@@ -63,8 +63,8 @@ const updateProperty = asyncHandler(async (req, res) => {
     throw new Error('Property not found');
   }
 
-  // Check if user is the owner
-  if (property.ownerId !== req.user.uid) {
+  // Check if user is the owner (compare with firebaseUid)
+  if (property.ownerId !== req.user.firebaseUid) {
     res.status(401);
     throw new Error('Not authorized to update this property');
   }
@@ -84,8 +84,8 @@ const deleteProperty = asyncHandler(async (req, res) => {
     throw new Error('Property not found');
   }
 
-  // Check if user is the owner
-  if (property.ownerId !== req.user.uid) {
+  // Check if user is the owner (compare with firebaseUid)
+  if (property.ownerId !== req.user.firebaseUid) {
     res.status(401);
     throw new Error('Not authorized to delete this property');
   }
