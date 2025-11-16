@@ -8,7 +8,7 @@
 // For mobile/Capacitor development, create a .env.local file and set:
 // VITE_API_BASE_URL=http://YOUR_COMPUTER_IP:5000
 // Note: The base URL should already include /api if needed
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://5001-firebase-property-dealer-app-1762795971496.cluster-va5f6x3wzzh4stde63ddr3qgge.cloudworkstations.dev/test1-50da1/us-central1/api';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://us-central1-apnaashiyanaa-app.cloudfunctions.net/api';
 
 // Enhanced API client with error handling
 export const apiClient = {
