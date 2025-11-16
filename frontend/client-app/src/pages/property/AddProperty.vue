@@ -34,8 +34,8 @@
             <!-- Step 1: Basic Info -->
             <div v-show="currentStep === 0" class="space-y-6">
               <div class="form-group">
-                  <label>Property Title *</label>
-                  <input v-model="formData.title" type="text" required placeholder="e.g., Modern 2BHK with City View"/>
+                  <label>Property Name *</label>
+                  <input v-model="formData.name" type="text" required placeholder="e.g., Modern 2BHK with City View"/>
               </div>
               <div class="form-group">
                   <label>Description *</label>
@@ -44,10 +44,10 @@
                 <div class="form-group">
                   <label>Listing Type *</label>
                   <div class="grid grid-cols-2 gap-4">
-                      <button type="button" @click="formData.listingType = 'sale'" :class="{'active': formData.listingType === 'sale'}" class="option-button">
+                      <button type="button" @click="setListingType('For Sale')" :class="{'active': formData.listingType === 'For Sale'}" class="option-button">
                           <i class="fas fa-tag"></i> For Sale
                       </button>
-                        <button type="button" @click="formData.listingType = 'rent'" :class="{'active': formData.listingType === 'rent'}" class="option-button">
+                        <button type="button" @click="setListingType('For Rent')" :class="{'active': formData.listingType === 'For Rent'}" class="option-button">
                           <i class="fas fa-key"></i> For Rent
                       </button>
                   </div>
@@ -70,16 +70,16 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div class="form-group">
                       <label>Bedrooms *</label>
-                      <input v-model.number="formData.bedrooms" type="number" min="0" required placeholder="e.g., 3"/>
+                      <input v-model.number="formData.specifications.bedrooms" type="number" min="0" required placeholder="e.g., 3"/>
                   </div>
                   <div class="form-group">
                       <label>Bathrooms *</label>
-                      <input v-model.number="formData.bathrooms" type="number" min="0" required placeholder="e.g., 2"/>
+                      <input v-model.number="formData.specifications.bathrooms" type="number" min="0" required placeholder="e.g., 2"/>
                   </div>
               </div>
               <div class="form-group">
                   <label>Total Area (sq ft) *</label>
-                  <input v-model.number="formData.area" type="number" min="0" required placeholder="e.g., 1200"/>
+                  <input v-model.number="formData.specifications.area" type="number" min="0" required placeholder="e.g., 1200"/>
               </div>
             </div>
 
@@ -95,20 +95,16 @@
                     <input v-model="formData.location.city" required placeholder="e.g., Mumbai"/>
                 </div>
                 <div class="form-group">
-                    <label>State *</label>
-                    <input v-model="formData.location.state" required placeholder="e.g., Maharashtra"/>
+                    <label>Pincode *</label>
+                    <input v-model="formData.location.pincode" required placeholder="e.g., 400001"/>
                 </div>
-              </div>
-                <div class="form-group">
-                  <label>Pincode *</label>
-                  <input v-model="formData.location.pincode" required placeholder="e.g., 400001"/>
               </div>
             </div>
 
             <!-- Step 4: Pricing -->
               <div v-show="currentStep === 3" class="space-y-6">
                   <div class="form-group">
-                      <label>Expected Price (&#8377;) *</label>
+                      <label>Expected Price (₹) *</label>
                       <input v-model.number="formData.price" type="number" min="0" required placeholder="e.g., 7500000"/>
                   </div>
               </div>
@@ -151,9 +147,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
+import { propertyApi } from '../../services/api'; 
+import { uploadImages } from '../../services/imageService';
 import PropertyImageUpload from '../../components/PropertyImageUpload.vue';
+import authService from '../../services/authService';
 
 const router = useRouter();
 const currentStep = ref(0);
@@ -167,23 +166,60 @@ const steps = [
   { title: 'Images', icon: 'fas fa-images', fullDescription: 'Upload high-quality images of your property.' }
 ];
 
-const formData = ref({ title: '', description: '', listingType: 'sale', propertyType: '', bedrooms: null, bathrooms: null, area: null, price: null, location: { address: '', city: '', state: '', pincode: '' }, amenities: [] });
-const selectedImages = ref([]);
+const formData = reactive({
+  name: '',
+  description: '',
+  listingType: 'For Sale', // Default to For Sale
+  propertyType: '',
+  price: null,
+  location: {
+    address: '',
+    city: '',
+    pincode: '',
+  },
+  specifications: {
+    bedrooms: null,
+    bathrooms: null,
+    area: null,
+  },
+  amenities: [],
+  images: [],
+  ownerId: authService.getCurrentUser()?._id,
+  status: 'active',
+});
+
+const selectedImageFiles = ref([]);
 const availableAmenities = [ 'Parking', 'Garden', 'Pool', 'Gym', 'Security', 'Backup', 'Lift', 'Clubhouse', 'Play Area', 'WiFi' ];
 const isSubmitting = ref(false);
+
+const setListingType = (type) => {
+  formData.listingType = type;
+};
 
 const nextStep = () => { if (currentStep.value < steps.length - 1) currentStep.value++; };
 const previousStep = () => { if (currentStep.value > 0) currentStep.value--; };
 
-const handleImagesSelected = (images) => { selectedImages.value = images; };
+const handleImagesSelected = (imageFiles) => {
+  selectedImageFiles.value = imageFiles;
+};
 
 const handleSubmit = async () => {
   isSubmitting.value = true;
-  console.log('Submitting:', formData.value, selectedImages.value);
-  setTimeout(() => {
+
+  try {
+    const imageUrls = await uploadImages(selectedImageFiles.value, 'properties');
+    formData.images = imageUrls;
+
+    await propertyApi.createProperty(formData);
+
+    router.push({ name: 'PropertyList' }); // Redirect to property list on success
+
+  } catch (error) {
+    console.error('Failed to create property:', error);
+    alert('An error occurred while creating the property. Please try again.');
+  } finally {
     isSubmitting.value = false;
-    router.push({ name: 'PropertySuccess', params: { id: 'new-property-123' } });
-  }, 2000);
+  }
 };
 
 </script>
