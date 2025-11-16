@@ -153,16 +153,19 @@
 
             <!-- Navigation Buttons -->
             <div class="flex justify-between items-center mt-12 border-t border-gray-200 pt-6">
-              <button type="button" @click="previousStep" :disabled="currentStep === 0" class="btn-secondary" :class="{'opacity-50 cursor-not-allowed': currentStep === 0}">
+              <button type="button" @click="previousStep" :disabled="currentStep === 0 || isSubmitting" class="btn-secondary" :class="{'opacity-50 cursor-not-allowed': currentStep === 0 || isSubmitting}">
                 <i class="fas fa-arrow-left mr-2"></i> Previous
               </button>
 
               <button v-if="currentStep < steps.length - 1" type="button" @click="nextStep" class="btn-primary">
                 Next <i class="fas fa-arrow-right ml-2"></i>
               </button>
-              <button v-else type="submit" :disabled="isSubmitting" class="btn-primary bg-green-600 hover:bg-green-700">
-                <i v-if="isSubmitting" class="fas fa-spinner fa-spin mr-2"></i>
-                {{ isSubmitting ? 'Submitting...' : 'Submit Property' }}
+              <button v-else type="submit" :disabled="isSubmitting" class="btn-primary bg-green-600 hover:bg-green-700 w-52" :class="{'opacity-50 cursor-not-allowed': isSubmitting}">
+                <div class="flex items-center justify-center">
+                  <i v-if="submissionStatus === 'uploading' || submissionStatus === 'processing'" class="fas fa-spinner fa-spin mr-2"></i>
+                  <i v-else-if="submissionStatus === 'uploaded' || submissionStatus === 'success'" class="fas fa-check mr-2"></i>
+                  <span>{{ submitButtonText }}</span>
+                </div>
               </button>
             </div>
           </form>
@@ -173,7 +176,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import propertyService from '../../services/propertyService'; 
 import { uploadImages } from '../../services/imageService';
@@ -218,7 +221,19 @@ const formData = reactive({
 
 const selectedImageFiles = ref([]);
 const availableAmenities = [ 'Parking', 'Garden', 'Swimming Pool', 'Gym', '24/7 Security', 'Power Backup', 'Elevator', 'Clubhouse', 'Kids Play Area', 'Wi-Fi' ];
-const isSubmitting = ref(false);
+const submissionStatus = ref('idle'); // 'idle', 'uploading', 'uploaded', 'processing', 'success'
+
+const isSubmitting = computed(() => submissionStatus.value !== 'idle');
+
+const submitButtonText = computed(() => {
+    switch (submissionStatus.value) {
+        case 'uploading': return 'Uploading Images...';
+        case 'uploaded': return 'Images Uploaded!';
+        case 'processing': return 'Creating Property...';
+        case 'success': return 'Submitted!';
+        default: return 'Submit Property';
+    }
+});
 
 const setListingType = (type) => {
   formData.listingType = type;
@@ -232,60 +247,66 @@ const handleImagesSelected = (imageFiles) => {
 };
 
 const handleSubmit = async () => {
-  isSubmitting.value = true;
+  if (isSubmitting.value) return;
 
   try {
+    submissionStatus.value = 'uploading';
+    let imageUrls = [];
+    if (selectedImageFiles.value.length > 0) {
+      imageUrls = await uploadImages(selectedImageFiles.value, 'properties');
+    }
+
+    submissionStatus.value = 'uploaded';
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Pause to show message
+
+    submissionStatus.value = 'processing';
+
     const data = new FormData();
-    
-    // Map form data to backend schema - transform field names as needed
-    // Backend expects 'title', form has 'name'
     data.append('title', formData.name);
     data.append('description', formData.description);
     data.append('price', formData.price);
     data.append('propertyType', formData.propertyType.toLowerCase());
     data.append('listingType', formData.listingType);
-    
-    // Location - backend expects 'location' as JSON object
+
     const location = {
       address: formData.location.address,
       city: formData.location.city,
-      state: formData.location.state || 'Maharashtra', // Default state if not provided
-      country: formData.location.country || 'India', // Default country if not provided
-      pinCode: formData.location.pincode, // pincode -> pinCode
+      state: formData.location.state || 'Maharashtra',
+      country: formData.location.country || 'India',
+      pinCode: formData.location.pincode,
     };
     data.append('location', JSON.stringify(location));
-    
-    // Specifications - backend expects these as top-level, not nested
+
     data.append('bedrooms', formData.specifications.bedrooms);
     data.append('bathrooms', formData.specifications.bathrooms);
     data.append('area', formData.specifications.area);
-    
-    // Amenities
+
+    // Convert amenities array to a comma-separated string
     if (formData.amenities && formData.amenities.length > 0) {
       data.append('amenities', formData.amenities.join(','));
     }
+
+    // Append image URLs
+    if (imageUrls && imageUrls.length > 0) {
+      imageUrls.forEach(url => {
+        data.append('images', url);
+      });
+    }
     
-    // Images
-    selectedImageFiles.value.forEach(file => {
-      data.append('images', file);
-    });
+    data.append('ownerId', formData.ownerId);
+    data.append('status', formData.status);
 
     await propertyService.createProperty(data);
 
-    router.push({ name: 'PropertyList' });
+    submissionStatus.value = 'success';
+    setTimeout(() => {
+      router.push({ name: 'PropertySuccess' }); 
+    }, 1500);
 
   } catch (error) {
     console.error('Failed to create property:', error);
-    // Log detailed errors for debugging
-    if (error.errors) {
-      console.error('Validation errors:', error.errors);
-      const errorMessages = error.errors.map(e => `${Object.keys(e)[0]}: ${Object.values(e)[0]}`).join(', ');
-      alert(`Validation failed:\n${errorMessages}`);
-    } else {
-      alert('An error occurred while creating the property. Please check the console for details and try again.');
-    }
-  } finally {
-    isSubmitting.value = false;
+    alert('An error occurred while creating the property. Please check the console for details and try again.');
+    submissionStatus.value = 'idle'; // Reset on error
   }
 };
 
