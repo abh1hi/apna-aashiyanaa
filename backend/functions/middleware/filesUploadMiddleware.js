@@ -5,6 +5,11 @@ const asyncHandler = require('express-async-handler');
 // Configure multer for memory storage and file filtering
 const upload = multer({
   storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max file size
+    files: 10, // Maximum 10 files
+    fieldSize: 10 * 1024 * 1024, // 10MB max field size
+  },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image')) {
       cb(null, true);

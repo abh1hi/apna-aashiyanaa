@@ -6,9 +6,7 @@ const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001/test
 // Create axios instance with auth header
 const apiClient = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json'
-  }
+  // Content-Type will be set by interceptor based on data type
 });
 
 // Add Firebase ID token to requests dynamically
@@ -18,6 +16,12 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Set Content-Type for JSON requests only (not for FormData)
+    if (!config.headers['Content-Type'] && !(config.data instanceof FormData)) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+    
     return config;
   },
   (error) => {
@@ -33,16 +37,22 @@ apiClient.interceptors.request.use(
 export const createProperty = async (formData) => {
   try {
     // For FormData, axios automatically sets Content-Type with boundary
-    // We need to remove the default JSON Content-Type for this request
+    // The interceptor will skip setting Content-Type for FormData
     const response = await apiClient.post('/properties', formData, {
-      headers: {
-        'Content-Type': undefined // Let axios set it automatically for FormData
-      }
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+      timeout: 120000 // 2 minutes timeout for large uploads
     });
     return response.data;
   } catch (error) {
     console.error('Error creating property:', error);
-    throw error.response?.data || error;
+    if (error.response?.data) {
+      throw error.response.data;
+    }
+    if (error.message) {
+      throw new Error(error.message);
+    }
+    throw error;
   }
 };
 

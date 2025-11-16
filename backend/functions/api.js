@@ -26,9 +26,19 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 }));
 
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Body parsing - only for non-multipart requests
+// Multipart requests (with files) are handled by multer in specific routes
+app.use((req, res, next) => {
+  // Skip body parsing for multipart/form-data (handled by multer)
+  if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+    return next();
+  }
+  // Parse JSON and URL-encoded bodies for other requests
+  express.json({ limit: '10mb' })(req, res, (err) => {
+    if (err) return next(err);
+    express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
+  });
+});
 
 // Health check
 app.get("/health", (req, res) => {
@@ -70,6 +80,31 @@ app.use((req, res) => {
 // Error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
+  console.error('Error stack:', err.stack);
+  
+  // Handle multer/busboy errors specifically
+  if (err.message && err.message.includes('Unexpected end of form')) {
+    return res.status(400).json({
+      error: 'Invalid form data. The request may be incomplete or corrupted.',
+      details: 'Please ensure all form fields are properly formatted and try again.'
+    });
+  }
+  
+  // Handle multer errors
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({
+      error: 'File too large',
+      details: 'Maximum file size is 10MB'
+    });
+  }
+  
+  if (err.code === 'LIMIT_FILE_COUNT') {
+    return res.status(400).json({
+      error: 'Too many files',
+      details: 'Maximum 10 files allowed'
+    });
+  }
+  
   res.status(err.status || 500).json({
     error: err.message || 'Internal Server Error'
   });
