@@ -5,15 +5,11 @@
 
 const admin = require('firebase-admin');
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const { setGlobalOptions } = require("firebase-functions/v2");
 
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
   admin.initializeApp();
 }
-
-// Set global options for all functions in this file
-setGlobalOptions({ region: "us-central1" });
 
 const db = admin.firestore();
 const auth = admin.auth();

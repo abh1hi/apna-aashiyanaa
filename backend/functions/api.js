@@ -1,5 +1,4 @@
 const { onRequest } = require("firebase-functions/v2/https");
-const { setGlobalOptions } = require("firebase-functions/v2");
 const express = require("express");
 const cors = require("cors");
 const admin = require("firebase-admin");
@@ -8,9 +7,6 @@ const admin = require("firebase-admin");
 if (!admin.apps.length) {
   admin.initializeApp();
 }
-
-// Set global options for all functions in this file
-setGlobalOptions({ region: "us-central1" });
 
 // Create Express app
 const app = express();

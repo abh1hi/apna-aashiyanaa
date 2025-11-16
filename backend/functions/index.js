@@ -1,30 +1,29 @@
 /**
- * Firebase Cloud Functions Main Entry Point
- * Apna Aashiyanaa Property Management App
+ * Firebase Cloud Functions Main Entry Point (2nd Gen)
+ * This file should be the single source of truth for global configuration.
  */
+
+const { setGlobalOptions } = require("firebase-functions/v2");
+
+// Set global options for all functions in the project.
+// This MUST be called before any other function files are imported.
+setGlobalOptions({ region: "us-central1" });
 
 const admin = require('firebase-admin');
 
-// Initialize Firebase Admin
+// Initialize Firebase Admin once.
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-// Import auth functions
-const authFunctions = require('./auth');
+// Import and re-export the functions from their individual files.
+// This pattern allows for better organization of function code.
+const api = require('./api');
+const auth = require('./auth');
 
-// Import API function
-const {api} = require('./api');
-
-// Export Cloud Functions
-// Auth Functions
-exports.getUserProfile = authFunctions.getUserProfile;
-exports.updateUserProfile = authFunctions.updateUserProfile;
-exports.getUserByPhone = authFunctions.getUserByPhone;
-exports.createCustomToken = authFunctions.createCustomToken;
-exports.deleteUserAccount = authFunctions.deleteUserAccount;
-// exports.onUserCreate = authFunctions.onUserCreate;
-// exports.onUserDelete = authFunctions.onUserDelete;
-
-// API Function (Express app)
-exports.api = api;
+exports.api = api.api;
+exports.getUserProfile = auth.getUserProfile;
+exports.updateUserProfile = auth.updateUserProfile;
+exports.getUserByPhone = auth.getUserByPhone;
+exports.createCustomToken = auth.createCustomToken;
+exports.deleteUserAccount = auth.deleteUserAccount;
