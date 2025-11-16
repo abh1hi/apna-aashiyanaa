@@ -3,10 +3,10 @@ const admin = require('firebase-admin');
 // Get Firestore instance
 const db = admin.firestore();
 
-// Configure Firestore settings
+// Configure Firestore settings. The `timestampsInSnapshots` option is deprecated
+// and is now the default behavior, so it is no longer needed.
 db.settings({
   ignoreUndefinedProperties: true,
-  timestampsInSnapshots: true,
 });
 
 // Helper function to convert Firestore timestamp to Date
@@ -38,4 +38,3 @@ module.exports = {
   docWithId,
   docsWithIds,
 };
-
